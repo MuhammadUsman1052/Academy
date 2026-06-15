@@ -7,6 +7,8 @@ public class DeleteRoleValidator : AbstractValidator<DeleteRoleCommand>
 {
     public DeleteRoleValidator()
     {
-        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("Role id is required")
+            .NotEqual(Guid.Empty).WithMessage("Role id must be a valid GUID");
     }
 }

@@ -24,7 +24,7 @@ public class RoleQueryHandlers : ResponseHandler,
     public async Task<ApiResponse<List<RoleDto>>> Handle(GetRolesQuery request, CancellationToken cancellationToken)
     {
         var roles = await _repo.GetAllAsync();
-        return ApiResponse<List<RoleDto>>.Ok(_mapper.Map<List<RoleDto>>(roles));
+        return Success(_mapper.Map<List<RoleDto>>(roles));
     }
 
     public async Task<ApiResponse<RoleDto>> Handle(GetRoleByIdQuery request, CancellationToken cancellationToken)
@@ -34,6 +34,6 @@ public class RoleQueryHandlers : ResponseHandler,
         if (role is null)
             return NotFound<RoleDto>(ResponseMessages.RoleNotFound);
 
-        return ApiResponse<RoleDto>.Ok(_mapper.Map<RoleDto>(role));
+        return Success(_mapper.Map<RoleDto>(role));
     }
 }

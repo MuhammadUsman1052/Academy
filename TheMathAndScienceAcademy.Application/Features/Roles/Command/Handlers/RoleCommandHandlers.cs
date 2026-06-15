@@ -32,7 +32,7 @@ public class RoleCommandHandlers : ResponseHandler,
         var result = await _repo.CreateAsync(entity);
 
         if (result is null)
-            return BadRequest<RoleDto>("Failed to create role");
+            return BadRequest<RoleDto>(ResponseMessages.RoleCreateFailed);
 
         return Created(_mapper.Map<RoleDto>(result), ResponseMessages.RoleCreated);
     }
@@ -47,7 +47,7 @@ public class RoleCommandHandlers : ResponseHandler,
         var updated = await _repo.UpdateAsync(existing);
 
         if (!updated)
-            return BadRequest<RoleDto>("Role not updated");
+            return BadRequest<RoleDto>(ResponseMessages.RoleUpdateFailed);
 
         return Updated(_mapper.Map<RoleDto>(existing), ResponseMessages.RoleUpdated);
     }
