@@ -17,8 +17,8 @@ public class RoleRepository : IRoleRepository
     public async Task<List<Role>> GetAllAsync()
         => await _context.Roles.AsNoTracking().ToListAsync();
 
-    public async Task<Role?> GetByNameAsync(string name)
-        => await _context.Roles.FirstOrDefaultAsync(x => x.Name == name);
+    public async Task<Role?> GetByNameAsync(string name, string? academyId = null)
+        => await _context.Roles.FirstOrDefaultAsync(x => x.Name == name && x.AcademyId == academyId);
 
     public async Task<Role?> CreateAsync(Role role)
     {

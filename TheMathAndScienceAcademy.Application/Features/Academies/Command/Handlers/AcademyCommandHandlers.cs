@@ -20,6 +20,7 @@ public class AcademyCommandHandlers : ResponseHandler,
     private readonly IAcademyRepository _academyRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IRolePermissionSyncService _rolePermissionSyncService;
     private readonly ITemporaryPasswordGenerator _passwordGenerator;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IEmailService _emailService;
@@ -30,6 +31,7 @@ public class AcademyCommandHandlers : ResponseHandler,
         IAcademyRepository academyRepository,
         IRoleRepository roleRepository,
         IUserRepository userRepository,
+        IRolePermissionSyncService rolePermissionSyncService,
         ITemporaryPasswordGenerator passwordGenerator,
         IPasswordHasher passwordHasher,
         IEmailService emailService,
@@ -39,6 +41,7 @@ public class AcademyCommandHandlers : ResponseHandler,
         _academyRepository = academyRepository;
         _roleRepository = roleRepository;
         _userRepository = userRepository;
+        _rolePermissionSyncService = rolePermissionSyncService;
         _passwordGenerator = passwordGenerator;
         _passwordHasher = passwordHasher;
         _emailService = emailService;
@@ -56,41 +59,44 @@ public class AcademyCommandHandlers : ResponseHandler,
             return BadRequest<AcademyDto>(ResponseMessages.AcademyCreateFailed);
         }
 
-        var academyAdminRole = await _roleRepository.GetByNameAsync(AcademyAdminRoleName);
-        if (academyAdminRole is null)
-        {
-            academyAdminRole = await _roleRepository.CreateAsync(new Role
-            {
-                Name = AcademyAdminRoleName,
-                Description = "Default academy administrator role"
-            });
-        }
-
-        if (academyAdminRole is null)
-        {
-            return BadRequest<AcademyDto>(ResponseMessages.AcademyAdminRoleCreateFailed);
-        }
-
-        var temporaryPassword = _passwordGenerator.Generate();
-        var passwordHash = _passwordHasher.HashPassword(temporaryPassword);
-
         var existingAdminUser = await _userRepository.GetByEmailAsync(request.AdminEmail);
         if (existingAdminUser is not null)
         {
             return BadRequest<AcademyDto>(ResponseMessages.AcademyAdminAlreadyExists);
         }
 
+        var adminRole = await _roleRepository.CreateAsync(new Role
+        {
+            Name = AcademyAdminRoleName,
+            Description = $"Default academy administrator role for {createdAcademy.Name}",
+            AcademyId = createdAcademy.Id
+        });
+
+        if (adminRole is null)
+        {
+            return BadRequest<AcademyDto>(ResponseMessages.RoleCreateFailed);
+        }
+
+        await _rolePermissionSyncService.SyncRoleAsync(adminRole.Id);
+
+        var temporaryPassword = _passwordGenerator.Generate();
+        var passwordHash = _passwordHasher.HashPassword(temporaryPassword);
+
         var academyAdminUser = new User
         {
             Name = request.AdminName,
             Email = request.AdminEmail,
             PasswordHash = passwordHash,
-            RoleId = academyAdminRole.Id,
+            RoleId = adminRole.Id,
             IsActive = true,
             MustChangePassword = true
         };
 
         await _userRepository.CreateAsync(academyAdminUser);
+
+        var response = _mapper.Map<AcademyDto>(createdAcademy);
+        response.AdminRoleId = Guid.Parse(adminRole.Id);
+        response.AdminUserId = Guid.Parse(academyAdminUser.Id);
         try
         {
             await _emailService.SendAcademyAdminCredentialsAsync(request.Name, request.AdminName, request.AdminEmail, temporaryPassword);
@@ -100,7 +106,7 @@ public class AcademyCommandHandlers : ResponseHandler,
             _logger.LogError(ex, "Failed to send academy admin credentials email for academy {AcademyName} to {AdminEmail}", request.Name, request.AdminEmail);
         }
 
-        return Created(_mapper.Map<AcademyDto>(createdAcademy), ResponseMessages.AcademyCreated);
+        return Created(response, ResponseMessages.AcademyCreated);
     }
 
     public async Task<ApiResponse<AcademyDto>> Handle(UpdateAcademyCommand request, CancellationToken cancellationToken)

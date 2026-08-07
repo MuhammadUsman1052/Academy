@@ -9,7 +9,6 @@ using TheMathAndScienceAcademy.Domain.Repositories;
 namespace TheMathAndScienceAcademy.Application.Features.Permissions.Command.Handlers;
 
 public class PermissionCommandHandlers : ResponseHandler,
-    IRequestHandler<CreatePermissionCommand, ApiResponse<PermissionDto>>,
     IRequestHandler<UpdatePermissionCommand, ApiResponse<PermissionDto>>,
     IRequestHandler<DeletePermissionCommand, ApiResponse<bool>>
 {
@@ -20,21 +19,6 @@ public class PermissionCommandHandlers : ResponseHandler,
     {
         _repo = repo;
         _mapper = mapper;
-    }
-
-    public async Task<ApiResponse<PermissionDto>> Handle(CreatePermissionCommand request, CancellationToken cancellationToken)
-    {
-        var exists = await _repo.GetByNameAsync(request.Name);
-        if (exists is not null)
-            return BadRequest<PermissionDto>(ResponseMessages.PermissionAlreadyExists);
-
-        var entity = _mapper.Map<TheMathAndScienceAcademy.Domain.Entities.Permission>(request);
-        var result = await _repo.CreateAsync(entity);
-
-        if (result is null)
-            return BadRequest<PermissionDto>(ResponseMessages.PermissionCreateFailed);
-
-        return Created(_mapper.Map<PermissionDto>(result), ResponseMessages.PermissionCreated);
     }
 
     public async Task<ApiResponse<PermissionDto>> Handle(UpdatePermissionCommand request, CancellationToken cancellationToken)

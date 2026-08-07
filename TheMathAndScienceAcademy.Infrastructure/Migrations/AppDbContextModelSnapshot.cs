@@ -99,6 +99,10 @@ namespace TheMathAndScienceAcademy.Infrastructure.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("text");
 
+                    b.Property<string>("AcademyId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -120,9 +124,34 @@ namespace TheMathAndScienceAcademy.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"AcademyId\" IS NULL");
+
+                    b.HasIndex("Name", "AcademyId")
+                        .IsUnique()
+                        .HasFilter("\"AcademyId\" IS NOT NULL");
 
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("TheMathAndScienceAcademy.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<string>("RoleId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PermissionId")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsGranted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("TheMathAndScienceAcademy.Domain.Entities.User", b =>
@@ -189,6 +218,35 @@ namespace TheMathAndScienceAcademy.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("TheMathAndScienceAcademy.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("TheMathAndScienceAcademy.Domain.Entities.Permission", "Permission")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("PermissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TheMathAndScienceAcademy.Domain.Entities.Role", "Role")
+                        .WithMany("RolePermissions")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Permission");
+
+                    b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("TheMathAndScienceAcademy.Domain.Entities.Permission", b =>
+                {
+                    b.Navigation("RolePermissions");
+                });
+
+            modelBuilder.Entity("TheMathAndScienceAcademy.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("RolePermissions");
                 });
 #pragma warning restore 612, 618
         }

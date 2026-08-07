@@ -48,6 +48,23 @@ public class DatabaseSeeder
 
         if (userExists)
         {
+            var existingUser = await _context.Users
+                .FirstAsync(x => x.Email.ToLower() == SuperAdminEmail.ToLower());
+
+            var shouldRefreshPassword = string.IsNullOrWhiteSpace(existingUser.PasswordHash)
+                || !existingUser.PasswordHash.StartsWith("$2", StringComparison.Ordinal);
+
+            if (!shouldRefreshPassword)
+            {
+                return;
+            }
+
+            existingUser.PasswordHash = BCryptNet.HashPassword("Admin@123");
+            existingUser.RoleId = superAdminRole.Id;
+            existingUser.IsActive = true;
+            existingUser.MustChangePassword = false;
+
+            await _context.SaveChangesAsync();
             return;
         }
 

@@ -49,10 +49,20 @@ public class AuthCommandHandlers : ResponseHandler,
         var isValidPassword = BCryptNet.Verify(normalizedPassword, user.PasswordHash);
         if (!isValidPassword)
         {
-            var decodedPassword = Uri.UnescapeDataString(normalizedPassword);
-            if (!string.Equals(decodedPassword, normalizedPassword, StringComparison.Ordinal))
+            // Try URI unescape (percent-encoded) and form-url decode (handles '+') as fallbacks
+            var decodedUri = Uri.UnescapeDataString(normalizedPassword);
+            if (!string.Equals(decodedUri, normalizedPassword, StringComparison.Ordinal))
             {
-                isValidPassword = BCryptNet.Verify(decodedPassword, user.PasswordHash);
+                isValidPassword = BCryptNet.Verify(decodedUri, user.PasswordHash);
+            }
+
+            if (!isValidPassword)
+            {
+                var decodedForm = System.Net.WebUtility.UrlDecode(normalizedPassword) ?? string.Empty;
+                if (!string.Equals(decodedForm, normalizedPassword, StringComparison.Ordinal) && !string.Equals(decodedForm, decodedUri, StringComparison.Ordinal))
+                {
+                    isValidPassword = BCryptNet.Verify(decodedForm, user.PasswordHash);
+                }
             }
         }
 
@@ -89,10 +99,19 @@ public class AuthCommandHandlers : ResponseHandler,
         var isValidPassword = BCryptNet.Verify(normalizedCurrentPassword, user.PasswordHash);
         if (!isValidPassword)
         {
-            var decodedCurrentPassword = Uri.UnescapeDataString(normalizedCurrentPassword);
-            if (!string.Equals(decodedCurrentPassword, normalizedCurrentPassword, StringComparison.Ordinal))
+            var decodedUri = Uri.UnescapeDataString(normalizedCurrentPassword);
+            if (!string.Equals(decodedUri, normalizedCurrentPassword, StringComparison.Ordinal))
             {
-                isValidPassword = BCryptNet.Verify(decodedCurrentPassword, user.PasswordHash);
+                isValidPassword = BCryptNet.Verify(decodedUri, user.PasswordHash);
+            }
+
+            if (!isValidPassword)
+            {
+                var decodedForm = System.Net.WebUtility.UrlDecode(normalizedCurrentPassword) ?? string.Empty;
+                if (!string.Equals(decodedForm, normalizedCurrentPassword, StringComparison.Ordinal) && !string.Equals(decodedForm, decodedUri, StringComparison.Ordinal))
+                {
+                    isValidPassword = BCryptNet.Verify(decodedForm, user.PasswordHash);
+                }
             }
         }
 

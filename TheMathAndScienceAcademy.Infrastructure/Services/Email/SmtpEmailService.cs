@@ -9,6 +9,7 @@ namespace TheMathAndScienceAcademy.Infrastructure.Services.Email;
 public class SmtpEmailService : IEmailService
 {
     private readonly EmailSettings _emailSettings;
+    private readonly string _smtpUsername;
     private readonly ILogger<SmtpEmailService> _logger;
 
     public SmtpEmailService(
@@ -16,6 +17,9 @@ public class SmtpEmailService : IEmailService
         ILogger<SmtpEmailService> logger)
     {
         _emailSettings = emailSettings.Value;
+        _smtpUsername = string.IsNullOrWhiteSpace(_emailSettings.Username) || !_emailSettings.Username.Contains('@')
+            ? _emailSettings.SenderEmail
+            : _emailSettings.Username;
         _logger = logger;
     }
 
@@ -34,7 +38,7 @@ public class SmtpEmailService : IEmailService
         using var client = new SmtpClient(_emailSettings.Host, _emailSettings.Port)
         {
             EnableSsl = _emailSettings.EnableSsl,
-            Credentials = new NetworkCredential(_emailSettings.Username, _emailSettings.Password)
+            Credentials = new NetworkCredential(_smtpUsername, _emailSettings.Password)
         };
 
         try

@@ -36,7 +36,13 @@ public class AppDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(500);
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.Property(x => x.AcademyId).HasMaxLength(50);
+            entity.HasIndex(x => x.Name)
+                .IsUnique()
+                .HasFilter("\"AcademyId\" IS NULL");
+            entity.HasIndex(x => new { x.Name, x.AcademyId })
+                .IsUnique()
+                .HasFilter("\"AcademyId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<Permission>(entity =>
@@ -50,6 +56,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<RolePermission>(entity =>
         {
             entity.HasKey(x => new { x.RoleId, x.PermissionId });
+            entity.Property(x => x.IsGranted).IsRequired().HasDefaultValue(false);
 
             entity.HasOne(x => x.Role)
                 .WithMany(x => x.RolePermissions)

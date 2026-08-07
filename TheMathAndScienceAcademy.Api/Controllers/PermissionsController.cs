@@ -15,11 +15,6 @@ public class PermissionsController : ControllerBase
         _mediator = mediator;
     }
 
-    [HttpPost]
-    [HasPermission("permission.create")]
-    public async Task<IActionResult> Create([FromBody] CreatePermissionCommand command)
-        => Ok(await _mediator.Send(command));
-
     [HttpPut("{id:guid}")]
     [HasPermission("permission.update")]
     public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] UpdatePermissionCommand command)

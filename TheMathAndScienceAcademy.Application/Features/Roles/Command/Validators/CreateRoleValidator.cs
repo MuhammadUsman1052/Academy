@@ -14,5 +14,9 @@ public class CreateRoleValidator : AbstractValidator<CreateRoleCommand>
 
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Role description must not exceed 500 characters");
+
+        RuleFor(x => x.AcademyId)
+            .Must(x => x is null || x != Guid.Empty)
+            .WithMessage("Academy id must be a valid GUID");
     }
 }

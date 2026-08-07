@@ -8,7 +8,11 @@ public class UserRepository : IUserRepository
     public UserRepository(AppDbContext context) => _context = context;
     public async Task<List<User>> GetAllAsync() => await _context.Users.AsNoTracking().ToListAsync();
     public async Task<User?> GetByIdAsync(string id) => await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
-    public async Task<User?> GetByEmailAsync(string email) => await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Email == email);
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        var normalizedEmail = email.Trim().ToLower();
+        return await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Email.ToLower() == normalizedEmail);
+    }
     public async Task<User?> GetByRefreshTokenAsync(string refreshToken) => await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.RefreshToken == refreshToken);
     public async Task<User?> GetByResetPasswordTokenAsync(string resetPasswordToken) => await _context.Users.AsNoTracking().FirstOrDefaultAsync(x => x.ResetPasswordToken == resetPasswordToken);
     public async Task CreateAsync(User user)

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TheMathAndScienceAcademy.Api.Authorization;
+using TheMathAndScienceAcademy.Api.Services;
 using TheMathAndScienceAcademy.Application.Abstractions;
 using TheMathAndScienceAcademy.Application.Common;
 using TheMathAndScienceAcademy.Domain.Repositories;
@@ -78,6 +79,8 @@ builder.Services.AddScoped<IAcademyRepository, AcademyRepository>();
 builder.Services.AddScoped<TheMathAndScienceAcademy.Application.Abstractions.IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
+builder.Services.AddScoped<IPermissionCatalogService, ControllerPermissionCatalogService>();
+builder.Services.AddScoped<IRolePermissionSyncService, RolePermissionSyncService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
@@ -88,9 +91,15 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.MigrateAsync();
+
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedSuperAdminRoleAsync();
     await seeder.SeedSuperAdminUserAsync();
+
+    var rolePermissionSyncService = scope.ServiceProvider.GetRequiredService<IRolePermissionSyncService>();
+    await rolePermissionSyncService.SyncAllAsync();
 }
 
 app.UseSwagger();

@@ -13,6 +13,7 @@ public class RoleProfile : AutoMapper.Profile
         CreateMap<UpdateRoleCommand, Role>()
             .ForMember(dest => dest.Id, opt => opt.Ignore());
         CreateMap<Role, RoleDto>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id)));
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => Guid.Parse(src.Id)))
+            .ForMember(dest => dest.AcademyId, opt => opt.MapFrom(src => string.IsNullOrWhiteSpace(src.AcademyId) ? (Guid?)null : Guid.Parse(src.AcademyId)));
     }
 }

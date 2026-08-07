@@ -9,7 +9,6 @@ public class PermissionProfile : AutoMapper.Profile
 {
     public PermissionProfile()
     {
-        CreateMap<CreatePermissionCommand, Permission>();
         CreateMap<UpdatePermissionCommand, Permission>()
             .ForMember(dest => dest.Id, opt => opt.Ignore());
         CreateMap<Permission, PermissionDto>()

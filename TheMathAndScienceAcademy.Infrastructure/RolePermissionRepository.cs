@@ -13,13 +13,25 @@ public class RolePermissionRepository : IRolePermissionRepository
 
     public async Task<bool> AssignPermissionAsync(string roleId, string permissionId)
     {
-        var rolePermission = new RolePermission
-        {
-            RoleId = roleId,
-            PermissionId = permissionId
-        };
+        var rolePermission = await _context.RolePermissions
+            .FirstOrDefaultAsync(x => x.RoleId == roleId && x.PermissionId == permissionId);
 
-        await _context.RolePermissions.AddAsync(rolePermission);
+        if (rolePermission is null)
+        {
+            rolePermission = new RolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId,
+                IsGranted = true
+            };
+
+            await _context.RolePermissions.AddAsync(rolePermission);
+        }
+        else
+        {
+            rolePermission.IsGranted = true;
+        }
+
         var affected = await _context.SaveChangesAsync();
         return affected > 0;
     }
@@ -31,23 +43,34 @@ public class RolePermissionRepository : IRolePermissionRepository
 
         if (rolePermission is null)
         {
-            return false;
+            rolePermission = new RolePermission
+            {
+                RoleId = roleId,
+                PermissionId = permissionId,
+                IsGranted = false
+            };
+
+            await _context.RolePermissions.AddAsync(rolePermission);
+        }
+        else
+        {
+            rolePermission.IsGranted = false;
         }
 
-        _context.RolePermissions.Remove(rolePermission);
         var affected = await _context.SaveChangesAsync();
         return affected > 0;
     }
 
-    public async Task<List<Permission>> GetPermissionsByRoleIdAsync(string roleId)
+    public async Task<List<RolePermission>> GetPermissionsByRoleIdAsync(string roleId)
         => await _context.RolePermissions
             .AsNoTracking()
+            .Include(x => x.Permission)
             .Where(x => x.RoleId == roleId)
-            .Select(x => x.Permission)
+            .OrderBy(x => x.Permission.Name)
             .ToListAsync();
 
     public async Task<bool> RoleHasPermissionAsync(string roleId, string permissionName)
         => await _context.RolePermissions
             .AsNoTracking()
-            .AnyAsync(x => x.RoleId == roleId && x.Permission.Name == permissionName);
+            .AnyAsync(x => x.RoleId == roleId && x.IsGranted && x.Permission.Name == permissionName);
 }
