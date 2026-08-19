@@ -39,8 +39,11 @@ public static class ResponseMessages
     public const string PermissionAssignFailed = "Failed to assign permission to role.";
 
     public const string UserCreated = "User created successfully.";
+    public const string UserCreateFailed = "Failed to create user.";
     public const string UserUpdated = "User updated successfully.";
+    public const string UserUpdateFailed = "Failed to update user.";
     public const string UserDeleted = "User deleted successfully.";
+    public const string UserAlreadyExists = "User already exists.";
 
     public const string AcademyCreated = "Academy created successfully.";
     public const string AcademyCreateFailed = "Failed to create academy.";

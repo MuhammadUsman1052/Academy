@@ -1,10 +1,12 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TheMathAndScienceAcademy.Api.Authorization;
 using TheMathAndScienceAcademy.Application.Features.Roles.Command.Models;
 using TheMathAndScienceAcademy.Application.Features.Roles.Query.Models;
 
 [ApiController]
+[Authorize]
 [Route("api/roles")]
 public class RolesController : ControllerBase
 {

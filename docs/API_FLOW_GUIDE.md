@@ -288,3 +288,114 @@ If login fails even with the "same password", check:
 - whether the stored user hash is a valid BCrypt hash
 - whether the user is active
 - whether the request is hitting the correct database from `appsettings.json`
+
+## 6. Security Model Summary
+
+The backend now uses three layers of protection for the protected modules:
+
+1. Controller-level `[Authorize]`
+2. Endpoint-level `[HasPermission("module.action")]`
+3. Handler-level academy scoping for business rules
+
+What this means:
+- Authentication proves who the user is
+- Permissions prove what the user can do
+- Handler rules prove which academy or role scope the user is allowed to touch
+
+Important examples:
+- SuperAdmin can manage global data
+- AcademyAdmin can only work inside their academy scope
+- Role, permission, and academy endpoints are protected with both auth and permission rules
+
+## 7. Current Folder Structure
+
+The main implementation classes are now grouped more cleanly:
+
+### API
+- `Api/Authorization/` for permission policy and attribute handling
+- `Api/Services/Permissions/` for controller permission scanning
+- `Api/Controllers/` for endpoints
+
+### Infrastructure
+- `Infrastructure/Repositories/` for repository implementations
+- `Infrastructure/Services/Common/` for shared technical services
+- `Infrastructure/Services/Permissions/` for permission and sync services
+- `Infrastructure/Services/Email/` for email settings and SMTP service
+- `Infrastructure/Seed/` for startup seeding
+
+## 8. Simple Test Scenario
+
+Use this flow to test every module in a clean way.
+
+### Step 1: Start the backend
+1. Run the API project.
+2. Confirm Swagger opens.
+3. Confirm the app seeds `SuperAdmin` and the default user.
+
+### Step 2: Login test
+1. Call `POST /api/auth/login`
+2. Use:
+   - Email: `admin@academy.com`
+   - Password: `Admin@123`
+3. Expected result:
+   - `Success = true`
+   - JWT token returned
+   - refresh token returned
+
+### Step 3: Protected auth test
+1. Call `GET /api/auth/me` with the bearer token.
+2. Expected result:
+   - current user data returned
+3. Negative test:
+   - remove the token
+   - expected result: unauthorized/forbidden response
+
+### Step 4: Academy module test
+1. Call `POST /api/academies` as SuperAdmin.
+2. Expected result:
+   - academy created
+   - academy admin role created automatically
+   - academy owner user created
+   - email attempt sent
+3. Negative test:
+   - call the same endpoint with a user that does not have `academy.create`
+   - expected result: access denied
+
+### Step 5: Role module test
+1. Call `POST /api/roles`
+2. Expected result:
+   - role created in the correct scope
+3. Negative test:
+   - use a role without `role.create`
+   - expected result: access denied
+
+### Step 6: Permission module test
+1. Call `GET /api/permissions`
+2. Expected result:
+   - permission list returned
+3. Call `PUT /api/permissions/{id}` with a valid token and permission
+4. Negative test:
+   - call without `permission.update`
+   - expected result: access denied
+
+### Step 7: Role-permission module test
+1. Call `GET /api/role-permissions/{roleId}`
+2. Expected result:
+   - all role permissions returned
+3. Call `POST /api/role-permissions/assign`
+4. Call `DELETE /api/role-permissions/remove`
+5. Negative test:
+   - use a user without the assign/remove permission
+   - expected result: access denied
+
+### Step 8: Security edge tests
+1. Try login with the wrong password
+2. Try calling a protected endpoint without a token
+3. Try calling an academy-scoped endpoint with a role from another academy
+4. Try creating a duplicate role or academy
+
+Expected result:
+- login rejects invalid credentials
+- protected endpoints reject missing token
+- academy scope is enforced in handlers
+- duplicates return validation/business errors

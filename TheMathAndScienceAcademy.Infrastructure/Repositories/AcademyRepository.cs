@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using TheMathAndScienceAcademy.Domain.Entities;
 using TheMathAndScienceAcademy.Domain.Repositories;
-using Microsoft.EntityFrameworkCore;
+
+namespace TheMathAndScienceAcademy.Infrastructure.Repositories;
 
 public class AcademyRepository : IAcademyRepository
 {

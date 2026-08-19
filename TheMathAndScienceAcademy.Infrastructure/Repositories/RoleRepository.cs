@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using TheMathAndScienceAcademy.Domain.Entities;
 using TheMathAndScienceAcademy.Domain.Repositories;
 
+namespace TheMathAndScienceAcademy.Infrastructure.Repositories;
+
 public class RoleRepository : IRoleRepository
 {
     private readonly AppDbContext _context;

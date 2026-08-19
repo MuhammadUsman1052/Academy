@@ -3,7 +3,7 @@ using TheMathAndScienceAcademy.Application.Abstractions;
 using TheMathAndScienceAcademy.Application.Common;
 using TheMathAndScienceAcademy.Domain.Entities;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Permissions;
 
 public class RolePermissionSyncService : IRolePermissionSyncService
 {
@@ -235,5 +235,4 @@ public class RolePermissionSyncService : IRolePermissionSyncService
             await _context.SaveChangesAsync();
         }
     }
-
 }

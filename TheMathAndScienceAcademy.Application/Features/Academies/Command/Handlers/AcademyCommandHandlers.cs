@@ -51,18 +51,18 @@ public class AcademyCommandHandlers : ResponseHandler,
 
     public async Task<ApiResponse<AcademyDto>> Handle(CreateAcademyCommand request, CancellationToken cancellationToken)
     {
+        var existingAdminUser = await _userRepository.GetByEmailAsync(request.AdminEmail);
+        if (existingAdminUser is not null)
+        {
+            return BadRequest<AcademyDto>(ResponseMessages.AcademyAdminAlreadyExists);
+        }
+
         var academy = _mapper.Map<Academy>(request);
         var createdAcademy = await _academyRepository.CreateAsync(academy);
 
         if (createdAcademy is null)
         {
             return BadRequest<AcademyDto>(ResponseMessages.AcademyCreateFailed);
-        }
-
-        var existingAdminUser = await _userRepository.GetByEmailAsync(request.AdminEmail);
-        if (existingAdminUser is not null)
-        {
-            return BadRequest<AcademyDto>(ResponseMessages.AcademyAdminAlreadyExists);
         }
 
         var adminRole = await _roleRepository.CreateAsync(new Role
@@ -88,6 +88,7 @@ public class AcademyCommandHandlers : ResponseHandler,
             Email = request.AdminEmail,
             PasswordHash = passwordHash,
             RoleId = adminRole.Id,
+            AcademyId = createdAcademy.Id,
             IsActive = true,
             MustChangePassword = true
         };

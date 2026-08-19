@@ -1,8 +1,7 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using TheMathAndScienceAcademy.Application.Abstractions;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Common;
 
 public class CurrentUserService : ICurrentUserService
 {

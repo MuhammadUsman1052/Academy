@@ -1,7 +1,7 @@
 using TheMathAndScienceAcademy.Application.Abstractions;
 using TheMathAndScienceAcademy.Domain.Repositories;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Permissions;
 
 public class PermissionService : IPermissionService
 {

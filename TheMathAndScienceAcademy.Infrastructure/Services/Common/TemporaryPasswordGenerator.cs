@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using TheMathAndScienceAcademy.Application.Abstractions;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Common;
 
 public class TemporaryPasswordGenerator : ITemporaryPasswordGenerator
 {

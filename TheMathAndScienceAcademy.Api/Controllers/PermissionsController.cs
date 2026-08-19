@@ -1,10 +1,12 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TheMathAndScienceAcademy.Api.Authorization;
 using TheMathAndScienceAcademy.Application.Features.Permissions.Command.Models;
 using TheMathAndScienceAcademy.Application.Features.Permissions.Query.Models;
 
 [ApiController]
+[Authorize]
 [Route("api/permissions")]
 public class PermissionsController : ControllerBase
 {

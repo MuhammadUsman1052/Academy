@@ -1,6 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Cryptography;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -8,7 +8,7 @@ using TheMathAndScienceAcademy.Application.Abstractions;
 using TheMathAndScienceAcademy.Application.Common;
 using TheMathAndScienceAcademy.Domain.Entities;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Common;
 
 public class JwtTokenService : IJwtTokenService
 {

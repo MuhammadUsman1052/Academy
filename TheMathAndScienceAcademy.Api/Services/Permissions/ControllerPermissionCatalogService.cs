@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using TheMathAndScienceAcademy.Api.Authorization;
 using TheMathAndScienceAcademy.Application.Abstractions;
 
-namespace TheMathAndScienceAcademy.Api.Services;
+namespace TheMathAndScienceAcademy.Api.Services.Permissions;
 
 public class ControllerPermissionCatalogService : IPermissionCatalogService
 {

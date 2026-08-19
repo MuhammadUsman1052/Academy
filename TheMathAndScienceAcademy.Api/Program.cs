@@ -7,12 +7,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using TheMathAndScienceAcademy.Api.Authorization;
-using TheMathAndScienceAcademy.Api.Services;
+using TheMathAndScienceAcademy.Api.Services.Permissions;
 using TheMathAndScienceAcademy.Application.Abstractions;
 using TheMathAndScienceAcademy.Application.Common;
 using TheMathAndScienceAcademy.Domain.Repositories;
-using TheMathAndScienceAcademy.Infrastructure.Services;
+using TheMathAndScienceAcademy.Infrastructure.Repositories;
+using TheMathAndScienceAcademy.Infrastructure.Services.Common;
 using TheMathAndScienceAcademy.Infrastructure.Services.Email;
+using TheMathAndScienceAcademy.Infrastructure.Services.Permissions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,6 +88,7 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, ApiAuthorizationResultHandler>();
 
 var app = builder.Build();
 
@@ -97,6 +100,7 @@ using (var scope = app.Services.CreateScope())
     var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
     await seeder.SeedSuperAdminRoleAsync();
     await seeder.SeedSuperAdminUserAsync();
+    await seeder.SyncAcademyScopedUserAcademyIdsAsync();
 
     var rolePermissionSyncService = scope.ServiceProvider.GetRequiredService<IRolePermissionSyncService>();
     await rolePermissionSyncService.SyncAllAsync();

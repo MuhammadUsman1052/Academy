@@ -1,7 +1,7 @@
-using TheMathAndScienceAcademy.Application.Abstractions;
 using BCryptNet = BCrypt.Net.BCrypt;
+using TheMathAndScienceAcademy.Application.Abstractions;
 
-namespace TheMathAndScienceAcademy.Infrastructure.Services;
+namespace TheMathAndScienceAcademy.Infrastructure.Services.Common;
 
 public class PasswordHasher : IPasswordHasher
 {

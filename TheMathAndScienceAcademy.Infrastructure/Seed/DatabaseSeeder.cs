@@ -80,4 +80,27 @@ public class DatabaseSeeder
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task SyncAcademyScopedUserAcademyIdsAsync()
+    {
+        var academyScopedUsers = await _context.Users
+            .Join(_context.Roles,
+                user => user.RoleId,
+                role => role.Id,
+                (user, role) => new { user, role })
+            .Where(x => x.role.AcademyId != null && x.user.AcademyId == null)
+            .ToListAsync();
+
+        if (academyScopedUsers.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var item in academyScopedUsers)
+        {
+            item.user.AcademyId = item.role.AcademyId;
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }
