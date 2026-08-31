@@ -26,6 +26,7 @@ public class AcademyCommandHandlers : ResponseHandler,
     private readonly IEmailService _emailService;
     private readonly ILogger<AcademyCommandHandlers> _logger;
     private readonly IMapper _mapper;
+    private readonly IAcademyScopeService _academyScopeService;
 
     public AcademyCommandHandlers(
         IAcademyRepository academyRepository,
@@ -36,7 +37,8 @@ public class AcademyCommandHandlers : ResponseHandler,
         IPasswordHasher passwordHasher,
         IEmailService emailService,
         ILogger<AcademyCommandHandlers> logger,
-        IMapper mapper)
+        IMapper mapper,
+        IAcademyScopeService academyScopeService)
     {
         _academyRepository = academyRepository;
         _roleRepository = roleRepository;
@@ -47,10 +49,15 @@ public class AcademyCommandHandlers : ResponseHandler,
         _emailService = emailService;
         _logger = logger;
         _mapper = mapper;
+        _academyScopeService = academyScopeService;
     }
 
     public async Task<ApiResponse<AcademyDto>> Handle(CreateAcademyCommand request, CancellationToken cancellationToken)
     {
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || !scope.IsSuperAdmin)
+            return BadRequest<AcademyDto>(ResponseMessages.Forbidden);
+
         var existingAdminUser = await _userRepository.GetByEmailAsync(request.AdminEmail);
         if (existingAdminUser is not null)
         {
@@ -112,6 +119,10 @@ public class AcademyCommandHandlers : ResponseHandler,
 
     public async Task<ApiResponse<AcademyDto>> Handle(UpdateAcademyCommand request, CancellationToken cancellationToken)
     {
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || !scope.IsSuperAdmin)
+            return BadRequest<AcademyDto>(ResponseMessages.Forbidden);
+
         var existingAcademy = await _academyRepository.GetByIdAsync(request.Id);
         if (existingAcademy is null)
         {
@@ -131,6 +142,10 @@ public class AcademyCommandHandlers : ResponseHandler,
 
     public async Task<ApiResponse<bool>> Handle(DeleteAcademyCommand request, CancellationToken cancellationToken)
     {
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || !scope.IsSuperAdmin)
+            return BadRequest<bool>(ResponseMessages.Forbidden);
+
         var deleted = await _academyRepository.DeleteAsync(request.Id);
 
         if (!deleted)

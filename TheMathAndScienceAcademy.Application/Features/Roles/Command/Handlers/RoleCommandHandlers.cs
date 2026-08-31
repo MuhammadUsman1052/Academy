@@ -17,17 +17,20 @@ public class RoleCommandHandlers : ResponseHandler,
     private readonly IRoleRepository _repo;
     private readonly IRolePermissionSyncService _rolePermissionSyncService;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAcademyScopeService _academyScopeService;
     private readonly IMapper _mapper;
 
     public RoleCommandHandlers(
         IRoleRepository repo,
         IRolePermissionSyncService rolePermissionSyncService,
         ICurrentUserService currentUserService,
+        IAcademyScopeService academyScopeService,
         IMapper mapper)
     {
         _repo = repo;
         _rolePermissionSyncService = rolePermissionSyncService;
         _currentUserService = currentUserService;
+        _academyScopeService = academyScopeService;
         _mapper = mapper;
     }
 
@@ -41,9 +44,18 @@ public class RoleCommandHandlers : ResponseHandler,
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
 
         var isSuperAdmin = string.Equals(currentUserRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid)
+            return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
         var currentAcademyId = string.IsNullOrWhiteSpace(_currentUserService.AcademyId) ? null : _currentUserService.AcademyId;
 
         var targetAcademyId = request.AcademyId?.ToString();
+        if (isSuperAdmin && !string.IsNullOrWhiteSpace(scope.AcademyId))
+        {
+            if (targetAcademyId is not null && !string.Equals(targetAcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest<RoleDto>(ResponseMessages.Forbidden);
+            targetAcademyId = scope.AcademyId;
+        }
         if (!isSuperAdmin)
         {
             if (string.IsNullOrWhiteSpace(currentAcademyId))
@@ -85,8 +97,12 @@ public class RoleCommandHandlers : ResponseHandler,
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
 
         var isSuperAdmin = string.Equals(currentUserRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid)
+            return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
         var currentAcademyId = string.IsNullOrWhiteSpace(_currentUserService.AcademyId) ? null : _currentUserService.AcademyId;
-        if (!isSuperAdmin && !string.Equals(existing.AcademyId, currentAcademyId, StringComparison.OrdinalIgnoreCase))
+        if ((!isSuperAdmin || !string.IsNullOrWhiteSpace(scope.AcademyId))
+            && !string.Equals(existing.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))
             return BadRequest<RoleDto>(ResponseMessages.Forbidden);
 
         var requestedAcademyId = request.AcademyId?.ToString() ?? existing.AcademyId;
@@ -123,8 +139,12 @@ public class RoleCommandHandlers : ResponseHandler,
             return NotFound<bool>(ResponseMessages.RoleNotFound);
 
         var isSuperAdmin = string.Equals(currentUserRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid)
+            return BadRequest<bool>(ResponseMessages.Unauthorized);
         var currentAcademyId = string.IsNullOrWhiteSpace(_currentUserService.AcademyId) ? null : _currentUserService.AcademyId;
-        if (!isSuperAdmin && !string.Equals(existing.AcademyId, currentAcademyId, StringComparison.OrdinalIgnoreCase))
+        if ((!isSuperAdmin || !string.IsNullOrWhiteSpace(scope.AcademyId))
+            && !string.Equals(existing.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))
             return BadRequest<bool>(ResponseMessages.Forbidden);
 
         var ok = await _repo.DeleteAsync(request.Id);

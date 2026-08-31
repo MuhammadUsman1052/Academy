@@ -12,4 +12,10 @@ public interface IEmailService
         string adminName,
         string adminEmail,
         string temporaryPassword);
+
+    Task SendStudentCredentialsAsync(
+        string academyName,
+        string studentName,
+        string studentEmail,
+        string temporaryPassword);
 }

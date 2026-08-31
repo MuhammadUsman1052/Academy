@@ -14,15 +14,18 @@ public class RolePermissionQueryHandlers : ResponseHandler,
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly IMapper _mapper;
+    private readonly IAcademyScopeService _academyScopeService;
 
     public RolePermissionQueryHandlers(
         IRoleRepository roleRepository,
         IRolePermissionRepository rolePermissionRepository,
-        IMapper mapper)
+        IMapper mapper,
+        IAcademyScopeService academyScopeService)
     {
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
         _mapper = mapper;
+        _academyScopeService = academyScopeService;
     }
 
     public async Task<ApiResponse<List<RolePermissionDto>>> Handle(GetRolePermissionsQuery request, CancellationToken cancellationToken)
@@ -31,6 +34,14 @@ public class RolePermissionQueryHandlers : ResponseHandler,
         if (role is null)
         {
             return NotFound<List<RolePermissionDto>>(ResponseMessages.RoleNotFound);
+        }
+
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || (!scope.IsSuperAdmin && role.AcademyId is null)
+            || (role.AcademyId is not null
+                && !string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return BadRequest<List<RolePermissionDto>>(ResponseMessages.Forbidden);
         }
 
         var permissions = await _rolePermissionRepository.GetPermissionsByRoleIdAsync(role.Id);

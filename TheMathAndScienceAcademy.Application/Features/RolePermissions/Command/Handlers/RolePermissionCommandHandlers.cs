@@ -14,15 +14,18 @@ public class RolePermissionCommandHandlers : ResponseHandler,
     private readonly IRoleRepository _roleRepository;
     private readonly IPermissionRepository _permissionRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
+    private readonly IAcademyScopeService _academyScopeService;
 
     public RolePermissionCommandHandlers(
         IRoleRepository roleRepository,
         IPermissionRepository permissionRepository,
-        IRolePermissionRepository rolePermissionRepository)
+        IRolePermissionRepository rolePermissionRepository,
+        IAcademyScopeService academyScopeService)
     {
         _roleRepository = roleRepository;
         _permissionRepository = permissionRepository;
         _rolePermissionRepository = rolePermissionRepository;
+        _academyScopeService = academyScopeService;
     }
 
     public async Task<ApiResponse<bool>> Handle(AssignPermissionToRoleCommand request, CancellationToken cancellationToken)
@@ -32,6 +35,12 @@ public class RolePermissionCommandHandlers : ResponseHandler,
         {
             return NotFound<bool>(ResponseMessages.RoleNotFound);
         }
+
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || (!scope.IsSuperAdmin && role.AcademyId is null)
+            || (role.AcademyId is not null
+                && !string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase)))
+            return BadRequest<bool>(ResponseMessages.Forbidden);
 
         var permission = await _permissionRepository.GetByIdAsync(request.PermissionId);
         if (permission is null)
@@ -61,6 +70,12 @@ public class RolePermissionCommandHandlers : ResponseHandler,
         {
             return NotFound<bool>(ResponseMessages.RoleNotFound);
         }
+
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || (!scope.IsSuperAdmin && role.AcademyId is null)
+            || (role.AcademyId is not null
+                && !string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase)))
+            return BadRequest<bool>(ResponseMessages.Forbidden);
 
         var permission = await _permissionRepository.GetByIdAsync(request.PermissionId);
         if (permission is null)

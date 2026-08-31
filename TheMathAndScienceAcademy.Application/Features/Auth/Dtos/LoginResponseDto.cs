@@ -8,6 +8,7 @@ public class LoginResponseDto
     public string Name { get; set; } = default!;
     public string Email { get; set; } = default!;
     public string RoleId { get; set; } = default!;
+    public string RoleName { get; set; } = default!;
     public string? AcademyId { get; set; }
     public bool MustChangePassword { get; set; }
 }

@@ -13,16 +13,22 @@ public class PermissionCommandHandlers : ResponseHandler,
     IRequestHandler<DeletePermissionCommand, ApiResponse<bool>>
 {
     private readonly IPermissionRepository _repo;
+    private readonly IAcademyScopeService _academyScopeService;
     private readonly IMapper _mapper;
 
-    public PermissionCommandHandlers(IPermissionRepository repo, IMapper mapper)
+    public PermissionCommandHandlers(IPermissionRepository repo, IAcademyScopeService academyScopeService, IMapper mapper)
     {
         _repo = repo;
+        _academyScopeService = academyScopeService;
         _mapper = mapper;
     }
 
     public async Task<ApiResponse<PermissionDto>> Handle(UpdatePermissionCommand request, CancellationToken cancellationToken)
     {
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || !scope.IsSuperAdmin)
+            return BadRequest<PermissionDto>(ResponseMessages.Forbidden);
+
         var existing = await _repo.GetByIdAsync(request.Id);
         if (existing is null)
             return NotFound<PermissionDto>(ResponseMessages.PermissionNotFound);
@@ -42,6 +48,10 @@ public class PermissionCommandHandlers : ResponseHandler,
 
     public async Task<ApiResponse<bool>> Handle(DeletePermissionCommand request, CancellationToken cancellationToken)
     {
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || !scope.IsSuperAdmin)
+            return BadRequest<bool>(ResponseMessages.Forbidden);
+
         var ok = await _repo.DeleteAsync(request.Id);
 
         if (!ok)

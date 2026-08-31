@@ -34,7 +34,7 @@ public class DatabaseSeeder
     }
 
     public async Task SeedSuperAdminUserAsync()
-    {
+     {
         var superAdminRole = await _context.Roles
             .FirstOrDefaultAsync(x => x.Name.ToLower() == SuperAdminRoleName.ToLower());
 

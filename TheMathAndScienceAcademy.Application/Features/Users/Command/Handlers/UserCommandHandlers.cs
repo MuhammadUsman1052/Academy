@@ -20,6 +20,7 @@ public class UserCommandHandlers : ResponseHandler,
     private readonly IRoleRepository _roleRepository;
     private readonly IAcademyRepository _academyRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAcademyScopeService _academyScopeService;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IMapper _mapper;
 
@@ -28,6 +29,7 @@ public class UserCommandHandlers : ResponseHandler,
         IRoleRepository roleRepository,
         IAcademyRepository academyRepository,
         ICurrentUserService currentUserService,
+        IAcademyScopeService academyScopeService,
         IPasswordHasher passwordHasher,
         IMapper mapper)
     {
@@ -35,6 +37,7 @@ public class UserCommandHandlers : ResponseHandler,
         _roleRepository = roleRepository;
         _academyRepository = academyRepository;
         _currentUserService = currentUserService;
+        _academyScopeService = academyScopeService;
         _passwordHasher = passwordHasher;
         _mapper = mapper;
     }
@@ -67,6 +70,12 @@ public class UserCommandHandlers : ResponseHandler,
             }
 
             targetAcademyId = access.AcademyId;
+        }
+        else if (!string.IsNullOrWhiteSpace(access.AcademyId))
+        {
+            targetAcademyId = access.AcademyId;
+            if (role.AcademyId is not null && !string.Equals(role.AcademyId, targetAcademyId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest<UserDto>(ResponseMessages.Forbidden);
         }
         else if (role.AcademyId is not null)
         {
@@ -124,7 +133,8 @@ public class UserCommandHandlers : ResponseHandler,
             return NotFound<UserDto>(ResponseMessages.UserNotFound);
         }
 
-        if (!access.IsSuperAdmin && !string.Equals(existing.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
+        if (!access.IsValid || string.IsNullOrWhiteSpace(access.AcademyId)
+            || !string.Equals(existing.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest<UserDto>(ResponseMessages.Forbidden);
         }
@@ -155,6 +165,12 @@ public class UserCommandHandlers : ResponseHandler,
             }
 
             targetAcademyId = access.AcademyId;
+        }
+        else if (!string.IsNullOrWhiteSpace(access.AcademyId))
+        {
+            targetAcademyId = access.AcademyId;
+            if (role.AcademyId is not null && !string.Equals(role.AcademyId, targetAcademyId, StringComparison.OrdinalIgnoreCase))
+                return BadRequest<UserDto>(ResponseMessages.Forbidden);
         }
         else if (role.AcademyId is not null)
         {
@@ -213,7 +229,8 @@ public class UserCommandHandlers : ResponseHandler,
             return NotFound<bool>(ResponseMessages.UserNotFound);
         }
 
-        if (!access.IsSuperAdmin && !string.Equals(existing.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
+        if (!access.IsValid || string.IsNullOrWhiteSpace(access.AcademyId)
+            || !string.Equals(existing.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest<bool>(ResponseMessages.Forbidden);
         }
@@ -229,24 +246,9 @@ public class UserCommandHandlers : ResponseHandler,
 
     private async Task<UserAccessContext?> GetAccessContextAsync()
     {
-        if (!Guid.TryParse(_currentUserService.RoleId, out var roleId))
-        {
-            return null;
-        }
-
-        var currentRole = await _roleRepository.GetByIdAsync(roleId);
-        if (currentRole is null)
-        {
-            return null;
-        }
-
-        var isSuperAdmin = string.Equals(currentRole.Name, SuperAdminRoleName, StringComparison.OrdinalIgnoreCase);
-        var academyId = string.IsNullOrWhiteSpace(_currentUserService.AcademyId)
-            ? currentRole.AcademyId
-            : _currentUserService.AcademyId;
-
-        return new UserAccessContext(isSuperAdmin, academyId);
+        var scope = await _academyScopeService.GetScopeAsync();
+        return scope.IsValid ? new UserAccessContext(scope.IsSuperAdmin, scope.AcademyId, scope.IsValid) : null;
     }
 
-    private sealed record UserAccessContext(bool IsSuperAdmin, string? AcademyId);
+    private sealed record UserAccessContext(bool IsSuperAdmin, string? AcademyId, bool IsValid);
 }

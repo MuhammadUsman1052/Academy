@@ -13,15 +13,18 @@ public class AuthQueryHandlers : ResponseHandler,
 {
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IRoleRepository _roleRepository;
     private readonly IMapper _mapper;
 
     public AuthQueryHandlers(
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
+        IRoleRepository roleRepository,
         IMapper mapper)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _roleRepository = roleRepository;
         _mapper = mapper;
     }
 
@@ -37,6 +40,10 @@ public class AuthQueryHandlers : ResponseHandler,
         var dto = _mapper.Map<CurrentUserDto>(user);
         dto.RoleId = _currentUserService.RoleId ?? dto.RoleId;
         dto.AcademyId = _currentUserService.AcademyId ?? dto.AcademyId;
+        if (Guid.TryParse(dto.RoleId, out var roleId))
+        {
+            dto.RoleName = (await _roleRepository.GetByIdAsync(roleId))?.Name ?? string.Empty;
+        }
 
         return Success(dto);
     }

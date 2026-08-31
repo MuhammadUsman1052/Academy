@@ -65,4 +65,16 @@ public class SmtpEmailService : IEmailService
 
         await SendAsync(adminEmail, subject, body);
     }
+
+    public async Task SendStudentCredentialsAsync(string academyName, string studentName, string studentEmail, string temporaryPassword)
+    {
+        const string subject = "Your academy student account";
+        var body = $"Dear {studentName},\n\n" +
+                   $"Your student account for {academyName} has been created.\n\n" +
+                   $"Email:\n{studentEmail}\n\n" +
+                   $"Temporary Password:\n{temporaryPassword}\n\n" +
+                   "Please log in and change your password immediately.";
+
+        await SendAsync(studentEmail, subject, body);
+    }
 }

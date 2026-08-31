@@ -17,6 +17,7 @@ public class AuthCommandHandlers : ResponseHandler,
     IRequestHandler<RefreshTokenCommand, ApiResponse<LoginResponseDto>>
 {
     private readonly IUserRepository _userRepository;
+    private readonly IRoleRepository _roleRepository;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IEmailService _emailService;
@@ -24,12 +25,14 @@ public class AuthCommandHandlers : ResponseHandler,
 
     public AuthCommandHandlers(
         IUserRepository userRepository,
+        IRoleRepository roleRepository,
         IJwtTokenService jwtTokenService,
         ICurrentUserService currentUserService,
         IEmailService emailService,
         IMapper mapper)
     {
         _userRepository = userRepository;
+        _roleRepository = roleRepository;
         _jwtTokenService = jwtTokenService;
         _currentUserService = currentUserService;
         _emailService = emailService;
@@ -79,6 +82,7 @@ public class AuthCommandHandlers : ResponseHandler,
         var response = _mapper.Map<LoginResponseDto>(user);
         response.Token = token;
         response.RefreshToken = refreshToken;
+        response.RoleName = await GetRoleNameAsync(user.RoleId);
 
         if (user.MustChangePassword)
             return Success(response, ResponseMessages.PasswordChangeRequired);
@@ -127,7 +131,7 @@ public class AuthCommandHandlers : ResponseHandler,
         if (!updated)
             return BadRequest<bool>(ResponseMessages.PasswordChangeFailed);
 
-        return Success(true, ResponseMessages.PasswordChangedSuccessfully);
+         return Success(true, ResponseMessages.PasswordChangedSuccessfully);
     }
 
     public async Task<ApiResponse<bool>> Handle(ForgotPasswordCommand request, CancellationToken cancellationToken)
@@ -186,7 +190,15 @@ public class AuthCommandHandlers : ResponseHandler,
         var response = _mapper.Map<LoginResponseDto>(user);
         response.Token = newAccessToken;
         response.RefreshToken = newRefreshToken;
+        response.RoleName = await GetRoleNameAsync(user.RoleId);
 
         return Success(response, ResponseMessages.RefreshTokenSuccessful);
+    }
+
+    private async Task<string> GetRoleNameAsync(string roleId)
+    {
+        return Guid.TryParse(roleId, out var parsedRoleId)
+            ? (await _roleRepository.GetByIdAsync(parsedRoleId))?.Name ?? string.Empty
+            : string.Empty;
     }
 }

@@ -14,4 +14,5 @@ public class User : BaseEntity
     public string? AcademyId { get; set; }
     public bool IsActive { get; set; }
     public bool MustChangePassword { get; set; }
+    public DateTime? CredentialsSentAt { get; set; }
 }

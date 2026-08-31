@@ -78,6 +78,9 @@ builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IRoleRep
 builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IPermissionRepository, PermissionRepository>();
 builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IRolePermissionRepository, RolePermissionRepository>();
 builder.Services.AddScoped<IAcademyRepository, AcademyRepository>();
+builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IStudentRepository, StudentRepository>();
+builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IAcademicClassRepository, AcademicClassRepository>();
+builder.Services.AddScoped<TheMathAndScienceAcademy.Domain.Repositories.IStudentEnrollmentRepository, StudentEnrollmentRepository>();
 builder.Services.AddScoped<TheMathAndScienceAcademy.Application.Abstractions.IEmailService, SmtpEmailService>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddScoped<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
@@ -85,6 +88,8 @@ builder.Services.AddScoped<IPermissionCatalogService, ControllerPermissionCatalo
 builder.Services.AddScoped<IRolePermissionSyncService, RolePermissionSyncService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<IAcademyScopeService, AcademyScopeService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionAuthorizationPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();

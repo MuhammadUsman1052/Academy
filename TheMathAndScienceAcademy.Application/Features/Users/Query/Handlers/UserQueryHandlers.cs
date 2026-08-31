@@ -19,6 +19,7 @@ public class UserQueryHandlers : ResponseHandler,
     private readonly IAcademyRepository _academyRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAcademyScopeService _academyScopeService;
     private readonly IMapper _mapper;
 
     public UserQueryHandlers(
@@ -26,12 +27,14 @@ public class UserQueryHandlers : ResponseHandler,
         IAcademyRepository academyRepository,
         IRoleRepository roleRepository,
         ICurrentUserService currentUserService,
+        IAcademyScopeService academyScopeService,
         IMapper mapper)
     {
         _userRepository = userRepository;
         _academyRepository = academyRepository;
         _roleRepository = roleRepository;
         _currentUserService = currentUserService;
+        _academyScopeService = academyScopeService;
         _mapper = mapper;
     }
 
@@ -43,14 +46,12 @@ public class UserQueryHandlers : ResponseHandler,
             return BadRequest<List<UserDto>>(ResponseMessages.Unauthorized);
         }
 
-        if (!access.IsSuperAdmin && string.IsNullOrWhiteSpace(access.AcademyId))
+        if (!access.IsValid || string.IsNullOrWhiteSpace(access.AcademyId))
         {
-            return BadRequest<List<UserDto>>(ResponseMessages.Forbidden);
+            return BadRequest<List<UserDto>>(ResponseMessages.AcademySelectionRequired);
         }
 
-        var users = access.IsSuperAdmin
-            ? await _userRepository.GetAllAsync()
-            : await _userRepository.GetByAcademyIdAsync(access.AcademyId!);
+        var users = await _userRepository.GetByAcademyIdAsync(access.AcademyId);
 
         return Success(_mapper.Map<List<UserDto>>(users));
     }
@@ -69,7 +70,8 @@ public class UserQueryHandlers : ResponseHandler,
             return NotFound<UserDto>(ResponseMessages.UserNotFound);
         }
 
-        if (!access.IsSuperAdmin && !string.Equals(user.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
+        if (!access.IsValid || string.IsNullOrWhiteSpace(access.AcademyId)
+            || !string.Equals(user.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest<UserDto>(ResponseMessages.Forbidden);
         }
@@ -91,7 +93,8 @@ public class UserQueryHandlers : ResponseHandler,
             return NotFound<List<UserDto>>(ResponseMessages.AcademyNotFound);
         }
 
-        if (!access.IsSuperAdmin && !string.Equals(access.AcademyId, academy.Id, StringComparison.OrdinalIgnoreCase))
+        if (!access.IsValid || string.IsNullOrWhiteSpace(access.AcademyId)
+            || !string.Equals(access.AcademyId, academy.Id, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest<List<UserDto>>(ResponseMessages.Forbidden);
         }
@@ -102,24 +105,9 @@ public class UserQueryHandlers : ResponseHandler,
 
     private async Task<UserAccessContext?> GetAccessContextAsync()
     {
-        if (!Guid.TryParse(_currentUserService.RoleId, out var roleId))
-        {
-            return null;
-        }
-
-        var currentRole = await _roleRepository.GetByIdAsync(roleId);
-        if (currentRole is null)
-        {
-            return null;
-        }
-
-        var isSuperAdmin = string.Equals(currentRole.Name, SuperAdminRoleName, StringComparison.OrdinalIgnoreCase);
-        var academyId = string.IsNullOrWhiteSpace(_currentUserService.AcademyId)
-            ? currentRole.AcademyId
-            : _currentUserService.AcademyId;
-
-        return new UserAccessContext(isSuperAdmin, academyId);
+        var scope = await _academyScopeService.GetScopeAsync();
+        return scope.IsValid ? new UserAccessContext(scope.IsSuperAdmin, scope.AcademyId, scope.IsValid) : null;
     }
 
-    private sealed record UserAccessContext(bool IsSuperAdmin, string? AcademyId);
+    private sealed record UserAccessContext(bool IsSuperAdmin, string? AcademyId, bool IsValid);
 }

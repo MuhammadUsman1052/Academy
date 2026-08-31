@@ -13,25 +13,27 @@ public class RoleQueryHandlers : ResponseHandler,
     IRequestHandler<GetRoleByIdQuery, ApiResponse<RoleDto>>
 {
     private readonly IRoleRepository _repo;
-    private readonly ICurrentUserService _currentUserService;
+    private readonly IAcademyScopeService _academyScopeService;
     private readonly IMapper _mapper;
 
-    public RoleQueryHandlers(IRoleRepository repo, ICurrentUserService currentUserService, IMapper mapper)
+    public RoleQueryHandlers(IRoleRepository repo, IAcademyScopeService academyScopeService, IMapper mapper)
     {
         _repo = repo;
-        _currentUserService = currentUserService;
+        _academyScopeService = academyScopeService;
         _mapper = mapper;
     }
 
     public async Task<ApiResponse<List<RoleDto>>> Handle(GetRolesQuery request, CancellationToken cancellationToken)
     {
         var roles = await _repo.GetAllAsync();
-        var currentRole = await GetCurrentRoleAsync();
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid)
+            return BadRequest<List<RoleDto>>(ResponseMessages.Unauthorized);
 
-        if (currentRole is not null && !string.Equals(currentRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
-        {
-            roles = roles.Where(role => string.Equals(role.AcademyId, _currentUserService.AcademyId, StringComparison.OrdinalIgnoreCase)).ToList();
-        }
+        roles = roles.Where(role =>
+            (scope.IsSuperAdmin && role.AcademyId is null)
+            || (!string.IsNullOrWhiteSpace(scope.AcademyId)
+                && string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))).ToList();
 
         return Success(_mapper.Map<List<RoleDto>>(roles));
     }
@@ -43,23 +45,13 @@ public class RoleQueryHandlers : ResponseHandler,
         if (role is null)
             return NotFound<RoleDto>(ResponseMessages.RoleNotFound);
 
-        var currentRole = await GetCurrentRoleAsync();
-        if (currentRole is not null && !string.Equals(currentRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.Equals(role.AcademyId, _currentUserService.AcademyId, StringComparison.OrdinalIgnoreCase))
-                return BadRequest<RoleDto>(ResponseMessages.Forbidden);
-        }
+        var scope = await _academyScopeService.GetScopeAsync();
+        if (!scope.IsValid || (!scope.IsSuperAdmin && role.AcademyId is null)
+            || (role.AcademyId is not null
+                && !string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase)))
+            return BadRequest<RoleDto>(ResponseMessages.Forbidden);
 
         return Success(_mapper.Map<RoleDto>(role));
     }
 
-    private async Task<Domain.Entities.Role?> GetCurrentRoleAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_currentUserService.RoleId))
-        {
-            return null;
-        }
-
-        return await _repo.GetByIdAsync(Guid.Parse(_currentUserService.RoleId));
-    }
 }
