@@ -31,15 +31,16 @@ public class StudentCommandHandlers : ResponseHandler,
     private readonly IEmailService _email;
     private readonly ITransactionService _transactions;
     private readonly IMapper _mapper;
+    private readonly IProfilePhotoStorage _photos;
 
     public StudentCommandHandlers(IStudentRepository students, IAcademyRepository academies, IUserRepository users,
         IRoleRepository roles, IPermissionRepository permissions, IRolePermissionRepository rolePermissions,
         IRolePermissionSyncService sync, IAcademyScopeService scope, IPasswordHasher hasher,
-        ITemporaryPasswordGenerator passwords, IEmailService email, ITransactionService transactions, IMapper mapper)
+        ITemporaryPasswordGenerator passwords, IEmailService email, ITransactionService transactions, IMapper mapper, IProfilePhotoStorage photos)
     {
         _students = students; _academies = academies; _users = users; _roles = roles; _permissions = permissions;
         _rolePermissions = rolePermissions; _sync = sync; _scope = scope; _hasher = hasher; _passwords = passwords;
-        _email = email; _transactions = transactions; _mapper = mapper;
+        _email = email; _transactions = transactions; _mapper = mapper; _photos = photos;
     }
 
     public async Task<ApiResponse<StudentDto>> Handle(CreateStudentCommand request, CancellationToken cancellationToken)
@@ -190,11 +191,13 @@ public class StudentCommandHandlers : ResponseHandler,
         if (!CanAccess(scope, student.AcademyId)) return BadRequest<bool>(ResponseMessages.Forbidden);
         var deleted = await _transactions.ExecuteAsync(async () =>
         {
+            if (student.UserId is not null)
+                await _users.DeleteAsync(student.UserId);
             if (!await _students.DeleteAsync(student.Id)) return false;
-            if (student.UserId is not null) await _users.DeleteAsync(student.UserId);
             return true;
         }, cancellationToken);
         if (!deleted) return NotFound<bool>(ResponseMessages.StudentNotFound);
+        await _photos.DeleteAsync(student.ProfilePhotoKey, cancellationToken);
         return Deleted<bool>(ResponseMessages.StudentDeleted);
     }
 
@@ -247,6 +250,8 @@ public class StudentCommandHandlers : ResponseHandler,
         dto.MustChangePassword = user?.MustChangePassword == true;
         dto.CredentialsSentAt = user?.CredentialsSentAt;
         dto.CredentialsPending = user is not null && user.CredentialsSentAt is null;
+        dto.HasProfilePhoto = !string.IsNullOrWhiteSpace(student.ProfilePhotoKey);
+        dto.ProfilePhotoUpdatedAt = student.ProfilePhotoUpdatedAt;
         return dto;
     }
 

@@ -44,6 +44,10 @@ public class PermissionRepository : IPermissionRepository
             return false;
         }
 
+        var rolePermissions = await _context.RolePermissions
+            .Where(x => x.PermissionId == permission.Id)
+            .ToListAsync();
+        _context.RolePermissions.RemoveRange(rolePermissions);
         _context.Permissions.Remove(permission);
         var affected = await _context.SaveChangesAsync();
         return affected > 0;

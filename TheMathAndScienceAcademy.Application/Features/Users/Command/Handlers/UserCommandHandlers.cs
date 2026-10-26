@@ -64,7 +64,9 @@ public class UserCommandHandlers : ResponseHandler,
                 return BadRequest<UserDto>(ResponseMessages.Forbidden);
             }
 
-            if (role.AcademyId is not null && !string.Equals(role.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
+            if (role.AcademyId is null
+                || string.Equals(role.Name, SuperAdminRoleName, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(role.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
             {
                 return BadRequest<UserDto>(ResponseMessages.Forbidden);
             }
@@ -159,7 +161,9 @@ public class UserCommandHandlers : ResponseHandler,
                 return BadRequest<UserDto>(ResponseMessages.Forbidden);
             }
 
-            if (role.AcademyId is not null && !string.Equals(role.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
+            if (role.AcademyId is null
+                || string.Equals(role.Name, SuperAdminRoleName, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(role.AcademyId, access.AcademyId, StringComparison.OrdinalIgnoreCase))
             {
                 return BadRequest<UserDto>(ResponseMessages.Forbidden);
             }

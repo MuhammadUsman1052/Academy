@@ -53,7 +53,7 @@ public class UserQueryHandlers : ResponseHandler,
 
         var users = await _userRepository.GetByAcademyIdAsync(access.AcademyId);
 
-        return Success(_mapper.Map<List<UserDto>>(users));
+        return Success(await EnrichAsync(users));
     }
 
     public async Task<ApiResponse<UserDto>> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
@@ -76,7 +76,7 @@ public class UserQueryHandlers : ResponseHandler,
             return BadRequest<UserDto>(ResponseMessages.Forbidden);
         }
 
-        return Success(_mapper.Map<UserDto>(user));
+        return Success((await EnrichAsync(new[] { user })).Single());
     }
 
     public async Task<ApiResponse<List<UserDto>>> Handle(GetUsersByAcademyQuery request, CancellationToken cancellationToken)
@@ -100,13 +100,31 @@ public class UserQueryHandlers : ResponseHandler,
         }
 
         var users = await _userRepository.GetByAcademyIdAsync(academy.Id);
-        return Success(_mapper.Map<List<UserDto>>(users));
+        return Success(await EnrichAsync(users));
     }
 
     private async Task<UserAccessContext?> GetAccessContextAsync()
     {
         var scope = await _academyScopeService.GetScopeAsync();
         return scope.IsValid ? new UserAccessContext(scope.IsSuperAdmin, scope.AcademyId, scope.IsValid) : null;
+    }
+
+    private async Task<List<UserDto>> EnrichAsync(IEnumerable<TheMathAndScienceAcademy.Domain.Entities.User> users)
+    {
+        var roles = await _roleRepository.GetAllAsync();
+        var academies = await _academyRepository.GetAllAsync();
+        var roleLookup = roles.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        var academyLookup = academies.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+
+        return users.Select(user =>
+        {
+            var dto = _mapper.Map<UserDto>(user);
+            dto.RoleName = roleLookup.TryGetValue(user.RoleId, out var role) ? role.Name : null;
+            dto.AcademyName = user.AcademyId is not null && academyLookup.TryGetValue(user.AcademyId, out var academy)
+                ? academy.Name
+                : null;
+            return dto;
+        }).ToList();
     }
 
     private sealed record UserAccessContext(bool IsSuperAdmin, string? AcademyId, bool IsValid);

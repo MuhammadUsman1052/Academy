@@ -15,17 +15,20 @@ public class RolePermissionCommandHandlers : ResponseHandler,
     private readonly IPermissionRepository _permissionRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly IAcademyScopeService _academyScopeService;
+    private readonly ICurrentUserService _currentUserService;
 
     public RolePermissionCommandHandlers(
         IRoleRepository roleRepository,
         IPermissionRepository permissionRepository,
         IRolePermissionRepository rolePermissionRepository,
-        IAcademyScopeService academyScopeService)
+        IAcademyScopeService academyScopeService,
+        ICurrentUserService currentUserService)
     {
         _roleRepository = roleRepository;
         _permissionRepository = permissionRepository;
         _rolePermissionRepository = rolePermissionRepository;
         _academyScopeService = academyScopeService;
+        _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<bool>> Handle(AssignPermissionToRoleCommand request, CancellationToken cancellationToken)
@@ -47,6 +50,9 @@ public class RolePermissionCommandHandlers : ResponseHandler,
         {
             return NotFound<bool>(ResponseMessages.PermissionNotFound);
         }
+
+        if (!scope.IsSuperAdmin && !await CurrentUserCanManagePermissionAsync(permission.Name))
+            return BadRequest<bool>(ResponseMessages.Forbidden);
 
         var alreadyAssigned = await _rolePermissionRepository.RoleHasPermissionAsync(role.Id, permission.Name);
         if (alreadyAssigned)
@@ -83,6 +89,9 @@ public class RolePermissionCommandHandlers : ResponseHandler,
             return NotFound<bool>(ResponseMessages.PermissionNotFound);
         }
 
+        if (!scope.IsSuperAdmin && !await CurrentUserCanManagePermissionAsync(permission.Name))
+            return BadRequest<bool>(ResponseMessages.Forbidden);
+
         var removed = await _rolePermissionRepository.RemovePermissionAsync(role.Id, permission.Id);
         if (!removed)
         {
@@ -90,5 +99,11 @@ public class RolePermissionCommandHandlers : ResponseHandler,
         }
 
         return Deleted<bool>(ResponseMessages.PermissionRemoved);
+    }
+
+    private async Task<bool> CurrentUserCanManagePermissionAsync(string permissionName)
+    {
+        return !string.IsNullOrWhiteSpace(_currentUserService.RoleId)
+            && await _rolePermissionRepository.RoleHasPermissionAsync(_currentUserService.RoleId, permissionName);
     }
 }

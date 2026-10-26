@@ -39,6 +39,11 @@ public class StudentRepository : IStudentRepository
     {
         var student = await _context.Students.FirstOrDefaultAsync(x => x.Id == id);
         if (student is null) return false;
+
+        var enrollments = await _context.StudentEnrollments
+            .Where(x => x.StudentId == student.Id)
+            .ToListAsync();
+        _context.StudentEnrollments.RemoveRange(enrollments);
         _context.Students.Remove(student);
         return await _context.SaveChangesAsync() > 0;
     }

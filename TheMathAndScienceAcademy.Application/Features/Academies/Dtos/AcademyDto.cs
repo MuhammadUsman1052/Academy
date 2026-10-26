@@ -9,4 +9,11 @@ public class AcademyDto
     public string Address { get; set; } = default!;
     public Guid? AdminRoleId { get; set; }
     public Guid? AdminUserId { get; set; }
+    public string? AdminName { get; set; }
+    public string? AdminEmail { get; set; }
+    public string? AdminRoleName { get; set; }
+    public int UserCount { get; set; }
+    public int StudentCount { get; set; }
+    public int ClassCount { get; set; }
+    public int EnrollmentCount { get; set; }
 }

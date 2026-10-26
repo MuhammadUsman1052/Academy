@@ -18,6 +18,8 @@ public class AuthCommandHandlers : ResponseHandler,
 {
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IAcademyRepository _academyRepository;
+    private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ICurrentUserService _currentUserService;
     private readonly IEmailService _emailService;
@@ -26,6 +28,8 @@ public class AuthCommandHandlers : ResponseHandler,
     public AuthCommandHandlers(
         IUserRepository userRepository,
         IRoleRepository roleRepository,
+        IAcademyRepository academyRepository,
+        IRolePermissionRepository rolePermissionRepository,
         IJwtTokenService jwtTokenService,
         ICurrentUserService currentUserService,
         IEmailService emailService,
@@ -33,6 +37,8 @@ public class AuthCommandHandlers : ResponseHandler,
     {
         _userRepository = userRepository;
         _roleRepository = roleRepository;
+        _academyRepository = academyRepository;
+        _rolePermissionRepository = rolePermissionRepository;
         _jwtTokenService = jwtTokenService;
         _currentUserService = currentUserService;
         _emailService = emailService;
@@ -46,6 +52,9 @@ public class AuthCommandHandlers : ResponseHandler,
             return BadRequest<LoginResponseDto>(ResponseMessages.InvalidCredentials);
 
         if (!user.IsActive)
+            return BadRequest<LoginResponseDto>(ResponseMessages.UserInactive);
+
+        if (!await HasValidAcademyAsync(user))
             return BadRequest<LoginResponseDto>(ResponseMessages.UserInactive);
 
         var normalizedPassword = request.Password?.Trim() ?? string.Empty;
@@ -83,6 +92,8 @@ public class AuthCommandHandlers : ResponseHandler,
         response.Token = token;
         response.RefreshToken = refreshToken;
         response.RoleName = await GetRoleNameAsync(user.RoleId);
+        response.AcademyName = await GetAcademyNameAsync(user.AcademyId);
+        response.Permissions = await GetGrantedPermissionsAsync(user.RoleId);
 
         if (user.MustChangePassword)
             return Success(response, ResponseMessages.PasswordChangeRequired);
@@ -177,6 +188,9 @@ public class AuthCommandHandlers : ResponseHandler,
         if (user is null || user.RefreshTokenExpiry is null || user.RefreshTokenExpiry < DateTime.UtcNow)
             return BadRequest<LoginResponseDto>(ResponseMessages.InvalidOrExpiredRefreshToken);
 
+        if (!user.IsActive || !await HasValidAcademyAsync(user))
+            return BadRequest<LoginResponseDto>(ResponseMessages.UserInactive);
+
         var newAccessToken = _jwtTokenService.GenerateToken(user);
         var newRefreshToken = _jwtTokenService.GenerateRefreshToken();
 
@@ -191,6 +205,8 @@ public class AuthCommandHandlers : ResponseHandler,
         response.Token = newAccessToken;
         response.RefreshToken = newRefreshToken;
         response.RoleName = await GetRoleNameAsync(user.RoleId);
+        response.AcademyName = await GetAcademyNameAsync(user.AcademyId);
+        response.Permissions = await GetGrantedPermissionsAsync(user.RoleId);
 
         return Success(response, ResponseMessages.RefreshTokenSuccessful);
     }
@@ -200,5 +216,30 @@ public class AuthCommandHandlers : ResponseHandler,
         return Guid.TryParse(roleId, out var parsedRoleId)
             ? (await _roleRepository.GetByIdAsync(parsedRoleId))?.Name ?? string.Empty
             : string.Empty;
+    }
+
+    private async Task<string?> GetAcademyNameAsync(string? academyId)
+    {
+        return Guid.TryParse(academyId, out var parsedAcademyId)
+            ? (await _academyRepository.GetByIdAsync(parsedAcademyId))?.Name
+            : null;
+    }
+
+    private async Task<List<string>> GetGrantedPermissionsAsync(string roleId)
+    {
+        var rolePermissions = await _rolePermissionRepository.GetPermissionsByRoleIdAsync(roleId);
+        return rolePermissions
+            .Where(x => x.IsGranted && x.Permission is not null)
+            .Select(x => x.Permission!.Name)
+            .ToList();
+    }
+
+    private async Task<bool> HasValidAcademyAsync(TheMathAndScienceAcademy.Domain.Entities.User user)
+    {
+        if (string.IsNullOrWhiteSpace(user.AcademyId))
+            return true;
+
+        return Guid.TryParse(user.AcademyId, out var academyId)
+            && await _academyRepository.GetByIdAsync(academyId) is not null;
     }
 }

@@ -44,6 +44,24 @@ public class RoleRepository : IRoleRepository
             return false;
         }
 
+        var rolePermissions = await _context.RolePermissions
+            .Where(x => x.RoleId == role.Id)
+            .ToListAsync();
+        _context.RolePermissions.RemoveRange(rolePermissions);
+
+        var users = await _context.Users
+            .Where(x => x.RoleId == role.Id)
+            .ToListAsync();
+        var userIds = users.Select(x => x.Id).ToList();
+        if (userIds.Count > 0)
+        {
+            var linkedStudents = await _context.Students
+                .Where(x => x.UserId != null && userIds.Contains(x.UserId))
+                .ToListAsync();
+            foreach (var student in linkedStudents)
+                student.UserId = null;
+        }
+        _context.Users.RemoveRange(users);
         _context.Roles.Remove(role);
         var affected = await _context.SaveChangesAsync();
         return affected > 0;

@@ -59,10 +59,8 @@ public class AcademyCommandHandlers : ResponseHandler,
             return BadRequest<AcademyDto>(ResponseMessages.Forbidden);
 
         var existingAdminUser = await _userRepository.GetByEmailAsync(request.AdminEmail);
-        if (existingAdminUser is not null)
-        {
+        if (existingAdminUser is not null && !await IsReusableOrphanedAdminAsync(existingAdminUser))
             return BadRequest<AcademyDto>(ResponseMessages.AcademyAdminAlreadyExists);
-        }
 
         var academy = _mapper.Map<Academy>(request);
         var createdAcademy = await _academyRepository.CreateAsync(academy);
@@ -89,22 +87,35 @@ public class AcademyCommandHandlers : ResponseHandler,
         var temporaryPassword = _passwordGenerator.Generate();
         var passwordHash = _passwordHasher.HashPassword(temporaryPassword);
 
-        var academyAdminUser = new User
-        {
-            Name = request.AdminName,
-            Email = request.AdminEmail,
-            PasswordHash = passwordHash,
-            RoleId = adminRole.Id,
-            AcademyId = createdAcademy.Id,
-            IsActive = true,
-            MustChangePassword = true
-        };
+        var academyAdminUser = existingAdminUser ?? new User();
+        academyAdminUser.Name = request.AdminName;
+        academyAdminUser.Email = request.AdminEmail.Trim().ToLowerInvariant();
+        academyAdminUser.PasswordHash = passwordHash;
+        academyAdminUser.RoleId = adminRole.Id;
+        academyAdminUser.AcademyId = createdAcademy.Id;
+        academyAdminUser.IsActive = true;
+        academyAdminUser.MustChangePassword = true;
+        academyAdminUser.RefreshToken = null;
+        academyAdminUser.RefreshTokenExpiry = null;
 
-        await _userRepository.CreateAsync(academyAdminUser);
+        if (existingAdminUser is null)
+        {
+            await _userRepository.CreateAsync(academyAdminUser);
+        }
+        else if (!await _userRepository.UpdateAsync(academyAdminUser))
+        {
+            _logger.LogError("Failed to reuse orphaned academy admin user {UserId} for academy {AcademyId}",
+                academyAdminUser.Id, createdAcademy.Id);
+            return BadRequest<AcademyDto>(ResponseMessages.AcademyCreateFailed);
+        }
 
         var response = _mapper.Map<AcademyDto>(createdAcademy);
         response.AdminRoleId = Guid.Parse(adminRole.Id);
         response.AdminUserId = Guid.Parse(academyAdminUser.Id);
+        response.AdminRoleName = adminRole.Name;
+        response.AdminName = academyAdminUser.Name;
+        response.AdminEmail = academyAdminUser.Email;
+        response.UserCount = 1;
         try
         {
             await _emailService.SendAcademyAdminCredentialsAsync(request.Name, request.AdminName, request.AdminEmail, temporaryPassword);
@@ -115,6 +126,23 @@ public class AcademyCommandHandlers : ResponseHandler,
         }
 
         return Created(response, ResponseMessages.AcademyCreated);
+    }
+
+    private async Task<bool> IsReusableOrphanedAdminAsync(User user)
+    {
+        // A global user must never be reused. Only a user linked to a deleted academy
+        // can be safely reclaimed for a newly created academy.
+        if (string.IsNullOrWhiteSpace(user.AcademyId)
+            || !Guid.TryParse(user.AcademyId, out var userAcademyId)
+            || await _academyRepository.GetByIdAsync(userAcademyId) is not null)
+            return false;
+
+        if (!Guid.TryParse(user.RoleId, out var roleId))
+            return true;
+
+        var role = await _roleRepository.GetByIdAsync(roleId);
+        return role is null
+            || string.Equals(role.Name, AcademyAdminRoleName, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<ApiResponse<AcademyDto>> Handle(UpdateAcademyCommand request, CancellationToken cancellationToken)

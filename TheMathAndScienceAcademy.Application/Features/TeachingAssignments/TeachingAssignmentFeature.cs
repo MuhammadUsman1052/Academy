@@ -1,0 +1,57 @@
+using MediatR;
+using TheMathAndScienceAcademy.Application.Abstractions;
+using TheMathAndScienceAcademy.Application.Common;
+using TheMathAndScienceAcademy.Domain.Entities;
+using TheMathAndScienceAcademy.Domain.Repositories;
+
+namespace TheMathAndScienceAcademy.Application.Features.TeachingAssignments;
+
+public record TeachingAssignmentDto(Guid Id, Guid TeacherId, string TeacherName, Guid SubjectId, string SubjectName, Guid ClassId, string ClassName, string AcademicYear, DateTime StartDate, DateTime? EndDate, string Status, string AssignmentRole, Guid AcademyId, string? AcademyName);
+public class CreateTeachingAssignmentCommand : IRequest<ApiResponse<TeachingAssignmentDto>> { public Guid TeacherId { get; set; } public Guid SubjectId { get; set; } public Guid ClassId { get; set; } public string AcademicYear { get; set; } = ""; public DateTime StartDate { get; set; } = DateTime.UtcNow.Date; public DateTime? EndDate { get; set; } public string Status { get; set; } = "Active"; public string AssignmentRole { get; set; } = "Primary"; }
+public class UpdateTeachingAssignmentCommand : CreateTeachingAssignmentCommand { public Guid Id { get; set; } }
+public record DeleteTeachingAssignmentCommand(Guid Id) : IRequest<ApiResponse<bool>>;
+public record GetTeachingAssignmentsQuery : IRequest<ApiResponse<List<TeachingAssignmentDto>>>;
+public record GetMyTeachingAssignmentsQuery : IRequest<ApiResponse<List<TeachingAssignmentDto>>>;
+public record GetTeachingAssignmentsByTeacherQuery(Guid TeacherId) : IRequest<ApiResponse<List<TeachingAssignmentDto>>>;
+public record GetTeachingAssignmentsByClassQuery(Guid ClassId) : IRequest<ApiResponse<List<TeachingAssignmentDto>>>;
+
+public class TeachingAssignmentHandlers : ResponseHandler,
+    IRequestHandler<CreateTeachingAssignmentCommand, ApiResponse<TeachingAssignmentDto>>,
+    IRequestHandler<UpdateTeachingAssignmentCommand, ApiResponse<TeachingAssignmentDto>>,
+    IRequestHandler<DeleteTeachingAssignmentCommand, ApiResponse<bool>>,
+    IRequestHandler<GetTeachingAssignmentsQuery, ApiResponse<List<TeachingAssignmentDto>>>,
+    IRequestHandler<GetMyTeachingAssignmentsQuery, ApiResponse<List<TeachingAssignmentDto>>>,
+    IRequestHandler<GetTeachingAssignmentsByTeacherQuery, ApiResponse<List<TeachingAssignmentDto>>>,
+    IRequestHandler<GetTeachingAssignmentsByClassQuery, ApiResponse<List<TeachingAssignmentDto>>>
+{
+    private readonly ITeachingAssignmentRepository _assignments; private readonly ITeacherRepository _teachers; private readonly ISubjectRepository _subjects; private readonly IAcademicClassRepository _classes; private readonly IAcademyScopeService _scope; private readonly ICurrentUserService _current;
+    public TeachingAssignmentHandlers(ITeachingAssignmentRepository assignments, ITeacherRepository teachers, ISubjectRepository subjects, IAcademicClassRepository classes, IAcademyScopeService scope, ICurrentUserService current) { _assignments = assignments; _teachers = teachers; _subjects = subjects; _classes = classes; _scope = scope; _current = current; }
+
+    public async Task<ApiResponse<TeachingAssignmentDto>> Handle(CreateTeachingAssignmentCommand request, CancellationToken cancellationToken)
+    {
+        var academyId = await AcademyId(); if (academyId is null) return BadRequest<TeachingAssignmentDto>(ResponseMessages.AcademySelectionRequired);
+        var validation = await Validate(request, academyId, null); if (validation is not null) return BadRequest<TeachingAssignmentDto>(validation);
+        var assignment = new TeachingAssignment { TeacherId = request.TeacherId.ToString(), SubjectId = request.SubjectId.ToString(), ClassId = request.ClassId.ToString(), AcademyId = academyId, AcademicYear = request.AcademicYear.Trim(), StartDate = ToDate(request.StartDate)!.Value, EndDate = ToDate(request.EndDate), Status = Status(request.Status), AssignmentRole = Role(request.AssignmentRole)! };
+        return Created(await ToDto((await _assignments.CreateAsync(assignment))!), ResponseMessages.AssignmentCreated);
+    }
+    public async Task<ApiResponse<TeachingAssignmentDto>> Handle(UpdateTeachingAssignmentCommand request, CancellationToken cancellationToken)
+    {
+        var assignment = await _assignments.GetByIdAsync(request.Id.ToString()); if (assignment is null) return NotFound<TeachingAssignmentDto>(ResponseMessages.AssignmentNotFound);
+        var academyId = await AcademyId(); if (academyId is null || academyId != assignment.AcademyId) return BadRequest<TeachingAssignmentDto>(ResponseMessages.Forbidden);
+        var validation = await Validate(request, academyId, assignment.Id); if (validation is not null) return BadRequest<TeachingAssignmentDto>(validation);
+        assignment.TeacherId = request.TeacherId.ToString(); assignment.SubjectId = request.SubjectId.ToString(); assignment.ClassId = request.ClassId.ToString(); assignment.AcademicYear = request.AcademicYear.Trim(); assignment.StartDate = ToDate(request.StartDate)!.Value; assignment.EndDate = ToDate(request.EndDate); assignment.Status = Status(request.Status); assignment.AssignmentRole = Role(request.AssignmentRole)!; assignment.UpdatedAt = DateTime.UtcNow;
+        await _assignments.UpdateAsync(assignment); return Updated(await ToDto(assignment), ResponseMessages.AssignmentUpdated);
+    }
+    public async Task<ApiResponse<bool>> Handle(DeleteTeachingAssignmentCommand request, CancellationToken cancellationToken) { var item = await _assignments.GetByIdAsync(request.Id.ToString()); if (item is null) return NotFound<bool>(ResponseMessages.AssignmentNotFound); if (await AcademyId() != item.AcademyId) return BadRequest<bool>(ResponseMessages.Forbidden); await _assignments.DeleteAsync(item.Id); return Deleted<bool>(ResponseMessages.AssignmentDeleted); }
+    public async Task<ApiResponse<List<TeachingAssignmentDto>>> Handle(GetTeachingAssignmentsQuery request, CancellationToken cancellationToken) { var academyId = await AcademyId(); return academyId is null ? BadRequest<List<TeachingAssignmentDto>>(ResponseMessages.AcademySelectionRequired) : Success(await ToDtos(await _assignments.GetByAcademyIdAsync(academyId))); }
+    public async Task<ApiResponse<List<TeachingAssignmentDto>>> Handle(GetMyTeachingAssignmentsQuery request, CancellationToken cancellationToken) { if (string.IsNullOrWhiteSpace(_current.UserId)) return BadRequest<List<TeachingAssignmentDto>>(ResponseMessages.Unauthorized); var teacher = await _teachers.GetByUserIdAsync(_current.UserId); if (teacher is null) return NotFound<List<TeachingAssignmentDto>>(ResponseMessages.TeacherNotFound); if (await AcademyId() != teacher.AcademyId) return BadRequest<List<TeachingAssignmentDto>>(ResponseMessages.Forbidden); return Success(await ToDtos(await _assignments.GetByTeacherIdAsync(teacher.AcademyId, teacher.Id))); }
+    public async Task<ApiResponse<List<TeachingAssignmentDto>>> Handle(GetTeachingAssignmentsByTeacherQuery request, CancellationToken cancellationToken) { var teacher = await _teachers.GetByIdAsync(request.TeacherId.ToString()); if (teacher is null) return NotFound<List<TeachingAssignmentDto>>(ResponseMessages.TeacherNotFound); if (await AcademyId() != teacher.AcademyId) return BadRequest<List<TeachingAssignmentDto>>(ResponseMessages.Forbidden); return Success(await ToDtos(await _assignments.GetByTeacherIdAsync(teacher.AcademyId, teacher.Id))); }
+    public async Task<ApiResponse<List<TeachingAssignmentDto>>> Handle(GetTeachingAssignmentsByClassQuery request, CancellationToken cancellationToken) { var academicClass = await _classes.GetByIdAsync(request.ClassId.ToString()); if (academicClass is null) return NotFound<List<TeachingAssignmentDto>>(ResponseMessages.ClassNotFound); if (await AcademyId() != academicClass.AcademyId) return BadRequest<List<TeachingAssignmentDto>>(ResponseMessages.Forbidden); return Success(await ToDtos(await _assignments.GetByClassIdAsync(academicClass.AcademyId, academicClass.Id))); }
+    private async Task<string?> Validate(CreateTeachingAssignmentCommand request, string academyId, string? excludeId) { var teacher = await _teachers.GetByIdAsync(request.TeacherId.ToString()); var subject = await _subjects.GetByIdAsync(request.SubjectId.ToString()); var academicClass = await _classes.GetByIdAsync(request.ClassId.ToString()); if (teacher is null || subject is null || academicClass is null || teacher.AcademyId != academyId || subject.AcademyId != academyId || academicClass.AcademyId != academyId) return ResponseMessages.AssignmentInvalidReferences; if (teacher.Status != "Active" || academicClass.Status != "Active") return "Inactive teachers or classes cannot receive a new assignment."; var role = Role(request.AssignmentRole); if (role is null) return ResponseMessages.AssignmentRoleInvalid; var start = ToDate(request.StartDate)!.Value; var end = ToDate(request.EndDate); if (end is not null && end < start) return ResponseMessages.AssignmentDateRangeInvalid; if (role == "Substitute" && end is null) return ResponseMessages.AssignmentSubstituteDatesRequired; if (Status(request.Status) == "Active") { var activePrimary = await _assignments.GetActivePrimaryAsync(academyId, subject.Id, academicClass.Id, request.AcademicYear.Trim(), excludeId); if (role == "Primary" && activePrimary is not null) return ResponseMessages.AssignmentPrimaryExists; if (role != "Primary" && activePrimary is null) return ResponseMessages.AssignmentPrimaryRequired; if (role == "Substitute" && await _assignments.GetOverlappingSubstituteAsync(academyId, subject.Id, academicClass.Id, request.AcademicYear.Trim(), start, end!.Value, excludeId) is not null) return ResponseMessages.AssignmentSubstituteConflict; if (await _assignments.GetDuplicateAsync(academyId, teacher.Id, subject.Id, academicClass.Id, request.AcademicYear.Trim(), role, excludeId) is not null) return "This teacher already has this active assignment role for the selected class and subject."; } return null; }
+    private async Task<string?> AcademyId() { var scope = await _scope.GetScopeAsync(); return scope.IsValid ? scope.AcademyId : null; }
+    private async Task<List<TeachingAssignmentDto>> ToDtos(IEnumerable<TeachingAssignment> items) => (await Task.WhenAll(items.Select(ToDto))).OrderBy(x => x.AssignmentRole == "Primary" ? 0 : x.AssignmentRole == "Substitute" ? 1 : 2).ThenBy(x => x.TeacherName).ToList();
+    private async Task<TeachingAssignmentDto> ToDto(TeachingAssignment item) { var teacher = await _teachers.GetByIdAsync(item.TeacherId); var subject = await _subjects.GetByIdAsync(item.SubjectId); var academicClass = await _classes.GetByIdAsync(item.ClassId); return new(Guid.Parse(item.Id), Guid.Parse(item.TeacherId), teacher?.FullName ?? "Unknown teacher", Guid.Parse(item.SubjectId), subject?.Name ?? "Unknown subject", Guid.Parse(item.ClassId), academicClass?.Name ?? "Unknown class", item.AcademicYear, item.StartDate, item.EndDate, item.Status, item.AssignmentRole, Guid.Parse(item.AcademyId), null); }
+    private static string? Role(string? value) => value?.Trim().ToLowerInvariant() switch { "primary" => "Primary", "coteacher" or "co-teacher" => "CoTeacher", "substitute" => "Substitute", "assistant" => "Assistant", _ => null };
+    private static string Status(string value) => value.Equals("Inactive", StringComparison.OrdinalIgnoreCase) ? "Inactive" : "Active";
+    private static DateTime? ToDate(DateTime? value) => value.HasValue ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc) : null;
+}

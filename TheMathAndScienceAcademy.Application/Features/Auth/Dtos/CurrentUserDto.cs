@@ -8,5 +8,7 @@ public class CurrentUserDto
     public string RoleId { get; set; } = default!;
     public string RoleName { get; set; } = default!;
     public string? AcademyId { get; set; }
+    public string? AcademyName { get; set; }
+    public List<string> Permissions { get; set; } = new();
     public bool MustChangePassword { get; set; }
 }

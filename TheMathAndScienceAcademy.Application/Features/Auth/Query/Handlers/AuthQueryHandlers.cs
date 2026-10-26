@@ -14,17 +14,23 @@ public class AuthQueryHandlers : ResponseHandler,
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IAcademyRepository _academyRepository;
+    private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly IMapper _mapper;
 
     public AuthQueryHandlers(
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IRoleRepository roleRepository,
+        IAcademyRepository academyRepository,
+        IRolePermissionRepository rolePermissionRepository,
         IMapper mapper)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _roleRepository = roleRepository;
+        _academyRepository = academyRepository;
+        _rolePermissionRepository = rolePermissionRepository;
         _mapper = mapper;
     }
 
@@ -37,6 +43,14 @@ public class AuthQueryHandlers : ResponseHandler,
         if (user is null)
             return NotFound<CurrentUserDto>(ResponseMessages.UserNotFound);
 
+        if (!user.IsActive)
+            return BadRequest<CurrentUserDto>(ResponseMessages.UserInactive);
+
+        if (!string.IsNullOrWhiteSpace(user.AcademyId)
+            && (!Guid.TryParse(user.AcademyId, out var academyId)
+                || await _academyRepository.GetByIdAsync(academyId) is null))
+            return BadRequest<CurrentUserDto>(ResponseMessages.UserInactive);
+
         var dto = _mapper.Map<CurrentUserDto>(user);
         dto.RoleId = _currentUserService.RoleId ?? dto.RoleId;
         dto.AcademyId = _currentUserService.AcademyId ?? dto.AcademyId;
@@ -44,6 +58,14 @@ public class AuthQueryHandlers : ResponseHandler,
         {
             dto.RoleName = (await _roleRepository.GetByIdAsync(roleId))?.Name ?? string.Empty;
         }
+        if (Guid.TryParse(dto.AcademyId, out var academyIdValue))
+        {
+            dto.AcademyName = (await _academyRepository.GetByIdAsync(academyIdValue))?.Name;
+        }
+        dto.Permissions = (await _rolePermissionRepository.GetPermissionsByRoleIdAsync(dto.RoleId))
+            .Where(x => x.IsGranted && x.Permission is not null)
+            .Select(x => x.Permission!.Name)
+            .ToList();
 
         return Success(dto);
     }

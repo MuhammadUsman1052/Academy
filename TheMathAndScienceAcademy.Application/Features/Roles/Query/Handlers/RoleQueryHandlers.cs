@@ -13,12 +13,14 @@ public class RoleQueryHandlers : ResponseHandler,
     IRequestHandler<GetRoleByIdQuery, ApiResponse<RoleDto>>
 {
     private readonly IRoleRepository _repo;
+    private readonly IAcademyRepository _academyRepository;
     private readonly IAcademyScopeService _academyScopeService;
     private readonly IMapper _mapper;
 
-    public RoleQueryHandlers(IRoleRepository repo, IAcademyScopeService academyScopeService, IMapper mapper)
+    public RoleQueryHandlers(IRoleRepository repo, IAcademyRepository academyRepository, IAcademyScopeService academyScopeService, IMapper mapper)
     {
         _repo = repo;
+        _academyRepository = academyRepository;
         _academyScopeService = academyScopeService;
         _mapper = mapper;
     }
@@ -32,10 +34,17 @@ public class RoleQueryHandlers : ResponseHandler,
 
         roles = roles.Where(role =>
             (scope.IsSuperAdmin && role.AcademyId is null)
+            || (scope.IsSuperAdmin && !string.IsNullOrWhiteSpace(scope.AcademyId)
+                && string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))
             || (!string.IsNullOrWhiteSpace(scope.AcademyId)
                 && string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase))).ToList();
 
-        return Success(_mapper.Map<List<RoleDto>>(roles));
+        var academies = await _academyRepository.GetAllAsync();
+        var academyLookup = academies.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        var result = _mapper.Map<List<RoleDto>>(roles);
+        foreach (var dto in result)
+            dto.AcademyName = dto.AcademyId.HasValue && academyLookup.TryGetValue(dto.AcademyId.Value.ToString(), out var academy) ? academy.Name : null;
+        return Success(result);
     }
 
     public async Task<ApiResponse<RoleDto>> Handle(GetRoleByIdQuery request, CancellationToken cancellationToken)
@@ -51,7 +60,11 @@ public class RoleQueryHandlers : ResponseHandler,
                 && !string.Equals(role.AcademyId, scope.AcademyId, StringComparison.OrdinalIgnoreCase)))
             return BadRequest<RoleDto>(ResponseMessages.Forbidden);
 
-        return Success(_mapper.Map<RoleDto>(role));
+        var dto = _mapper.Map<RoleDto>(role);
+        dto.AcademyName = role.AcademyId is not null && Guid.TryParse(role.AcademyId, out var academyId)
+            ? (await _academyRepository.GetByIdAsync(academyId))?.Name
+            : null;
+        return Success(dto);
     }
 
 }

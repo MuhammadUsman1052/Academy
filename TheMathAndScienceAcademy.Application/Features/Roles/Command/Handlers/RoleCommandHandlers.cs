@@ -14,6 +14,12 @@ public class RoleCommandHandlers : ResponseHandler,
     IRequestHandler<UpdateRoleCommand, ApiResponse<RoleDto>>,
     IRequestHandler<DeleteRoleCommand, ApiResponse<bool>>
 {
+    private static readonly HashSet<string> ProtectedRoleNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "SuperAdmin",
+        "AcademyAdmin"
+    };
+
     private readonly IRoleRepository _repo;
     private readonly IRolePermissionSyncService _rolePermissionSyncService;
     private readonly ICurrentUserService _currentUserService;
@@ -44,6 +50,8 @@ public class RoleCommandHandlers : ResponseHandler,
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
 
         var isSuperAdmin = string.Equals(currentUserRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+        if (!isSuperAdmin && ProtectedRoleNames.Contains(request.Name.Trim()))
+            return BadRequest<RoleDto>(ResponseMessages.Forbidden);
         var scope = await _academyScopeService.GetScopeAsync();
         if (!scope.IsValid)
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
@@ -97,6 +105,8 @@ public class RoleCommandHandlers : ResponseHandler,
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);
 
         var isSuperAdmin = string.Equals(currentUserRole.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase);
+        if (!isSuperAdmin && ProtectedRoleNames.Contains(request.Name.Trim()))
+            return BadRequest<RoleDto>(ResponseMessages.Forbidden);
         var scope = await _academyScopeService.GetScopeAsync();
         if (!scope.IsValid)
             return BadRequest<RoleDto>(ResponseMessages.Unauthorized);

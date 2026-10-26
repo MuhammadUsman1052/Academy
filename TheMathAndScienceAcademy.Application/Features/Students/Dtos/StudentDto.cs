@@ -22,4 +22,6 @@ public class StudentDto
     public bool MustChangePassword { get; set; }
     public DateTime? CredentialsSentAt { get; set; }
     public bool CredentialsPending { get; set; }
+    public bool HasProfilePhoto { get; set; }
+    public DateTime? ProfilePhotoUpdatedAt { get; set; }
 }

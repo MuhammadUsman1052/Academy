@@ -9,11 +9,13 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
 {
     private readonly IUserRepository _userRepository;
     private readonly IPermissionService _permissionService;
+    private readonly IAcademyRepository _academyRepository;
 
-    public PermissionAuthorizationHandler(IUserRepository userRepository, IPermissionService permissionService)
+    public PermissionAuthorizationHandler(IUserRepository userRepository, IPermissionService permissionService, IAcademyRepository academyRepository)
     {
         _userRepository = userRepository;
         _permissionService = permissionService;
+        _academyRepository = academyRepository;
     }
 
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
@@ -26,7 +28,15 @@ public class PermissionAuthorizationHandler : AuthorizationHandler<PermissionReq
         }
 
         var user = await _userRepository.GetByIdAsync(userId);
-        if (user is null || string.IsNullOrWhiteSpace(user.RoleId))
+        if (user is null || !user.IsActive || string.IsNullOrWhiteSpace(user.RoleId))
+        {
+            context.Fail();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(user.AcademyId)
+            && (!Guid.TryParse(user.AcademyId, out var academyId)
+                || await _academyRepository.GetByIdAsync(academyId) is null))
         {
             context.Fail();
             return;

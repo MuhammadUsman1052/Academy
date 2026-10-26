@@ -15,4 +15,7 @@ public class Student : BaseEntity
     public string Status { get; set; } = "Active";
     public string AcademyId { get; set; } = default!;
     public string? UserId { get; set; }
+    public string? ProfilePhotoKey { get; set; }
+    public string? ProfilePhotoContentType { get; set; }
+    public DateTime? ProfilePhotoUpdatedAt { get; set; }
 }

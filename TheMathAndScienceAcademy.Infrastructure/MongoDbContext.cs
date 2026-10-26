@@ -16,6 +16,10 @@ public class AppDbContext : DbContext
     public DbSet<Student> Students => Set<Student>();
     public DbSet<AcademicClass> AcademicClasses => Set<AcademicClass>();
     public DbSet<StudentEnrollment> StudentEnrollments => Set<StudentEnrollment>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Teacher> Teachers => Set<Teacher>();
+    public DbSet<Subject> Subjects => Set<Subject>();
+    public DbSet<TeachingAssignment> TeachingAssignments => Set<TeachingAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +37,16 @@ public class AppDbContext : DbContext
             entity.Property(x => x.MustChangePassword).IsRequired();
             entity.Property(x => x.CredentialsSentAt);
             entity.HasIndex(x => x.Email).IsUnique();
+
+            entity.HasOne<Role>()
+                .WithMany()
+                .HasForeignKey(x => x.RoleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<Academy>()
+                .WithMany()
+                .HasForeignKey(x => x.AcademyId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Role>(entity =>
@@ -47,6 +61,11 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => new { x.Name, x.AcademyId })
                 .IsUnique()
                 .HasFilter("\"AcademyId\" IS NOT NULL");
+
+            entity.HasOne<Academy>()
+                .WithMany()
+                .HasForeignKey(x => x.AcademyId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Permission>(entity =>
@@ -95,9 +114,21 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Status).HasMaxLength(30).IsRequired();
             entity.Property(x => x.AcademyId).HasMaxLength(50).IsRequired();
             entity.Property(x => x.UserId).HasMaxLength(50);
+            entity.Property(x => x.ProfilePhotoKey).HasMaxLength(100);
+            entity.Property(x => x.ProfilePhotoContentType).HasMaxLength(100);
             entity.HasIndex(x => new { x.AcademyId, x.EnrollmentNumber }).IsUnique();
             entity.HasIndex(x => x.AcademyId);
             entity.HasIndex(x => x.UserId).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
+
+            entity.HasOne<Academy>()
+                .WithMany()
+                .HasForeignKey(x => x.AcademyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<AcademicClass>(entity =>
@@ -111,6 +142,11 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Status).HasMaxLength(30).IsRequired();
             entity.Property(x => x.AcademyId).HasMaxLength(50).IsRequired();
             entity.HasIndex(x => new { x.AcademyId, x.Grade, x.Section, x.AcademicYear }).IsUnique();
+
+            entity.HasOne<Academy>()
+                .WithMany()
+                .HasForeignKey(x => x.AcademyId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<StudentEnrollment>(entity =>
@@ -124,6 +160,69 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => new { x.StudentId, x.AcademicYear, x.AcademyId, x.Status });
             entity.HasIndex(x => x.ClassId);
             entity.HasIndex(x => x.AcademyId);
+
+            entity.HasOne<Student>()
+                .WithMany()
+                .HasForeignKey(x => x.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<AcademicClass>()
+                .WithMany()
+                .HasForeignKey(x => x.ClassId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Academy>()
+                .WithMany()
+                .HasForeignKey(x => x.AcademyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Action).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.Entity).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.ActorUserId).HasMaxLength(50);
+            entity.Property(x => x.EntityId).HasMaxLength(50);
+            entity.Property(x => x.AcademyId).HasMaxLength(50);
+            entity.Property(x => x.Result).HasMaxLength(30).IsRequired();
+            entity.HasIndex(x => new { x.AcademyId, x.CreatedAt });
+            entity.HasIndex(x => x.ActorUserId);
+        });
+
+        modelBuilder.Entity<Teacher>(entity =>
+        {
+            entity.HasKey(x => x.Id); entity.Property(x => x.FullName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.EmployeeNumber).HasMaxLength(50).IsRequired(); entity.Property(x => x.Email).HasMaxLength(255);
+            entity.Property(x => x.PhoneNumber).HasMaxLength(30); entity.Property(x => x.Gender).HasMaxLength(30);
+            entity.Property(x => x.Address).HasMaxLength(500); entity.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.AcademyId).HasMaxLength(50).IsRequired(); entity.Property(x => x.UserId).HasMaxLength(50);
+            entity.Property(x => x.ProfilePhotoKey).HasMaxLength(100); entity.Property(x => x.ProfilePhotoContentType).HasMaxLength(100);
+            entity.HasIndex(x => new { x.AcademyId, x.EmployeeNumber }).IsUnique(); entity.HasIndex(x => x.UserId).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
+            entity.HasOne<Academy>().WithMany().HasForeignKey(x => x.AcademyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<Subject>(entity =>
+        {
+            entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(150).IsRequired(); entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(500); entity.Property(x => x.AcademicYear).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(30).IsRequired(); entity.Property(x => x.AcademyId).HasMaxLength(50).IsRequired();
+            entity.HasIndex(x => new { x.AcademyId, x.Code, x.AcademicYear }).IsUnique(); entity.HasIndex(x => new { x.AcademyId, x.Name, x.AcademicYear }).IsUnique();
+            entity.HasOne<Academy>().WithMany().HasForeignKey(x => x.AcademyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TeachingAssignment>(entity =>
+        {
+            entity.HasKey(x => x.Id); entity.Property(x => x.TeacherId).HasMaxLength(50).IsRequired(); entity.Property(x => x.SubjectId).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ClassId).HasMaxLength(50).IsRequired(); entity.Property(x => x.AcademyId).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.AcademicYear).HasMaxLength(30).IsRequired(); entity.Property(x => x.Status).HasMaxLength(30).IsRequired(); entity.Property(x => x.AssignmentRole).HasMaxLength(30).IsRequired();
+            entity.HasIndex(x => new { x.AcademyId, x.ClassId, x.SubjectId, x.AcademicYear });
+            entity.HasIndex(x => new { x.AcademyId, x.TeacherId, x.Status });
+            entity.HasOne<Teacher>().WithMany().HasForeignKey(x => x.TeacherId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Subject>().WithMany().HasForeignKey(x => x.SubjectId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<AcademicClass>().WithMany().HasForeignKey(x => x.ClassId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Academy>().WithMany().HasForeignKey(x => x.AcademyId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

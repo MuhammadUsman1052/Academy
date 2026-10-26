@@ -91,6 +91,8 @@ public class StudentQueryHandlers : ResponseHandler,
             dto.MustChangePassword = user?.MustChangePassword == true;
             dto.CredentialsSentAt = user?.CredentialsSentAt;
             dto.CredentialsPending = user is not null && user.CredentialsSentAt is null;
+            dto.HasProfilePhoto = !string.IsNullOrWhiteSpace(student.ProfilePhotoKey);
+            dto.ProfilePhotoUpdatedAt = student.ProfilePhotoUpdatedAt;
             result.Add(dto);
         }
         return result;

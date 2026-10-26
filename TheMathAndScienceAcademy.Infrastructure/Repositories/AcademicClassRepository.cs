@@ -34,6 +34,11 @@ public class AcademicClassRepository : IAcademicClassRepository
     {
         var item = await _context.AcademicClasses.FirstOrDefaultAsync(x => x.Id == id);
         if (item is null) return false;
+
+        var enrollments = await _context.StudentEnrollments
+            .Where(x => x.ClassId == item.Id)
+            .ToListAsync();
+        _context.StudentEnrollments.RemoveRange(enrollments);
         _context.AcademicClasses.Remove(item);
         return await _context.SaveChangesAsync() > 0;
     }

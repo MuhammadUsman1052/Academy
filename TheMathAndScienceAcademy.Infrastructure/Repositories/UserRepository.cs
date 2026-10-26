@@ -48,6 +48,12 @@ public class UserRepository : IUserRepository
             return false;
         }
 
+        var linkedStudents = await _context.Students
+            .Where(x => x.UserId == user.Id)
+            .ToListAsync();
+        foreach (var student in linkedStudents)
+            student.UserId = null;
+
         _context.Users.Remove(user);
         var affected = await _context.SaveChangesAsync();
         return affected > 0;
